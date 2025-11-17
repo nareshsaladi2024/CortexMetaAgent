@@ -1,0 +1,56 @@
+# Orchestrator Configuration
+# Configuration for Workflow Orchestrator with React Pattern
+
+# Scheduler Settings
+scheduler:
+  # Enable automatic React cycle scheduling
+  # Set to false to disable, or use --scheduler CLI flag to override
+  enabled: false
+  
+  # Interval between React cycles (in minutes)
+  # Default: 15 minutes
+  interval_minutes: 15
+  
+  # Run immediately on start (before first interval)
+  run_on_start: true
+  
+  # Timeout for each cycle (in seconds)
+  cycle_timeout: 300
+
+# React Cycle Settings
+react_cycle:
+  # Monitor specific agent IDs (empty list = monitor all)
+  monitor_agent_ids: []
+  
+  # Only react to specific change types
+  # Options: config_changed, redeployed, new_agent
+  # Empty list = react to all change types
+  change_types: []
+
+# Regression Testing Settings
+regression_testing:
+  # Method for running tests: "pytest" or "adk_cli"
+  method: "pytest"
+  
+  # Test suite directory (relative to orchestrator)
+  suite_dir: "eval_suites"
+
+# Negative Test Generation Settings
+negative_test_generation:
+  # Number of negative test cases to generate
+  count: 600
+  
+  # Force regenerate even if tests exist
+  force_regenerate: false
+
+# Logging Settings
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Log file path (None = stdout only)
+  log_file: null
+  
+  # Log React cycle results
+  log_cycle_results: true
+

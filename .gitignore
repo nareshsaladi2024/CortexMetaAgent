@@ -16,6 +16,12 @@ build/
 .env
 .env.local
 
+# Google Cloud Service Account credentials (NEVER commit these!)
+*-*.json
+*service-account*.json
+*credentials*.json
+aiagent-*.json
+
 # IDE
 .vscode/
 .idea/

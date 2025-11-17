@@ -1,6 +1,6 @@
 """
-RetrieveAgent
-Uses Google ADK to create an agent that queries agent usage statistics from AgentInventory MCP server
+MetricsAgent
+Uses Google ADK to create an agent that queries agent usage statistics and metrics from AgentInventory MCP server
 """
 
 from google.adk.agents import Agent
@@ -227,11 +227,11 @@ def check_agent_inventory_health(mcp_server_url: Optional[str] = None) -> Dict[s
 
 # Create the AI Agent using Google ADK
 root_agent = Agent(
-    name="retrieve_agent",
+    name="metrics_agent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
-    description="An AI agent that retrieves and analyzes agent usage statistics from the mcp-agent-inventory MCP server. Specializes in querying agent performance metrics including usage patterns, latency, and failure rates for both local and deployed (GCP Reasoning Engine) agents.",
+    description="An AI agent that retrieves and analyzes agent usage statistics and metrics from the mcp-agent-inventory MCP server. Specializes in querying agent performance metrics including usage patterns, latency, and failure rates for both local and deployed (GCP Reasoning Engine) agents.",
     instruction=""" 
-    You are a RetrieveAgent that specializes in retrieving and analyzing agent usage statistics from the mcp-agent-inventory MCP server.
+    You are a MetricsAgent that specializes in retrieving and analyzing agent usage statistics and metrics from the mcp-agent-inventory MCP server.
     
     The mcp-agent-inventory MCP server provides:
     - Local agents: Agents running locally with in-memory inventory
@@ -277,7 +277,7 @@ root_agent = Agent(
 
 if __name__ == "__main__":
     # Example usage
-    print("RetrieveAgent")
+    print("MetricsAgent")
     print("=" * 50)
     print()
     

@@ -1,9 +1,9 @@
-# PowerShell script to run the RetrieveAgent
+# PowerShell script to run the MetricsAgent
 
 # Navigate to script directory
 Set-Location $PSScriptRoot
 
-Write-Host "RetrieveAgent" -ForegroundColor Green
+Write-Host "MetricsAgent" -ForegroundColor Green
 Write-Host ("=" * 50) -ForegroundColor Gray
 Write-Host ""
 
@@ -47,4 +47,3 @@ Write-Host "Running agent test suite..." -ForegroundColor Cyan
 Write-Host ""
 
 & $python test-agent.py
-

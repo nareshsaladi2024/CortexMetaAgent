@@ -1,10 +1,10 @@
-# ActionExtractor Agent
+# ReasoningCostAgent
 
 AI Agent built with Google ADK that extracts actionable items from reasoning chains and validates reasoning cost using the ReasoningCost MCP server.
 
 ## Overview
 
-ActionExtractor Agent analyzes reasoning chains to:
+ReasoningCostAgent analyzes reasoning chains to:
 - Extract actionable items and steps from reasoning processes
 - Validate reasoning chains for cost efficiency
 - Identify and flag expensive or runaway reasoning patterns
@@ -30,7 +30,7 @@ ActionExtractor Agent analyzes reasoning chains to:
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\ActionExtractor"
+cd "C:\AI Agents\CortexEvalAI\agents\ReasoningCostAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -72,7 +72,7 @@ cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-reasoning-cost"
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\ActionExtractor"
+cd "C:\AI Agents\CortexEvalAI\agents\ReasoningCostAgent"
 .\run-agent.ps1
 ```
 
@@ -133,7 +133,7 @@ The agent has access to two tools:
 ```
 User Query
     ↓
-ActionExtractor Agent (Google ADK)
+ReasoningCostAgent (Google ADK)
     ↓
 ReasoningCost MCP Server (HTTP REST API)
     ↓
@@ -197,7 +197,7 @@ If you see credential errors:
 ## Related
 
 - ReasoningCost MCP Server: `../../mcp-servers/mcp-reasoning-cost/`
-- SummarizerAgent: `../SummarizerAgent/`
+- TokenCostAgent: `../TokenCostAgent/`
 - Google ADK Documentation: https://github.com/google/generative-ai-python
 
 ## License

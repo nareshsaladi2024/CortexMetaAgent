@@ -1,18 +1,18 @@
-# SummarizerAgent
+# TokenCostAgent
 
-AI Agent built with Google ADK that integrates with the MCP TokenStats server to provide token usage statistics and analysis.
+AI Agent built with Google ADK that integrates with the MCP TokenStats server to provide token usage statistics, cost calculation, and analysis.
 
 ## Overview
 
-SummarizerAgent is an intelligent assistant that helps analyze token usage for text processing. It uses Google ADK (Agent Development Kit) and integrates with a remote MCP (Model Control Protocol) server to provide accurate token statistics, cost estimates, and insights.
+TokenCostAgent is an intelligent agent that helps analyze token usage for text processing and calculates actual costs in USD. It uses Google ADK (Agent Development Kit) and integrates with a remote MCP (Model Control Protocol) server to provide accurate token statistics, cost estimates, and insights.
 
 ## Features
 
-- **Natural Language Interface**: Ask about token usage in plain English
+- **Natural Language Interface**: Ask about token usage and costs in plain English
 - **MCP Integration**: Automatically queries the MCP TokenStats server for accurate token counts
+- **Cost Calculation**: Calculates actual USD costs using official Gemini API pricing
 - **Health Monitoring**: Can check MCP server status
 - **Intelligent Analysis**: Provides insights about token usage, costs, and limits
-- **Cost Estimation**: Calculates estimated costs for text processing
 - **Token Limits**: Shows remaining token capacity and compression ratios
 
 ## Prerequisites
@@ -29,7 +29,7 @@ SummarizerAgent is an intelligent assistant that helps analyze token usage for t
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\SummarizerAgent"
+cd "C:\AI Agents\CortexEvalAI\agents\TokenCostAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -71,7 +71,7 @@ cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-tokenstats"
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\SummarizerAgent"
+cd "C:\AI Agents\CortexEvalAI\agents\TokenCostAgent"
 .\run-agent.ps1
 ```
 
@@ -97,6 +97,11 @@ print(response)
 
 response = root_agent.run("How much would it cost to process a 1000-word document?")
 print(response)
+
+# Calculate cost from known token counts
+from agent import calculate_token_cost_from_counts
+cost = calculate_token_cost_from_counts(input_tokens=500, output_tokens=689, model="gemini-2.5-pro")
+print(cost)
 ```
 
 ### Example Queries
@@ -106,16 +111,21 @@ print(response)
 - "How much would it cost to process this text: 'Artificial intelligence is transforming the world.'"
 - "Check the token statistics for a summary request"
 - "What's the compression ratio for a 500-word summary?"
+- "Calculate the cost for 500 input tokens and 689 output tokens using gemini-2.5-pro"
 
 ## Agent Tools
 
-The agent has access to two tools:
+The agent has access to three tools:
 
 1. **`get_token_stats(prompt, model)`**: 
    - Queries the MCP server for token statistics
    - Returns: input tokens, estimated output tokens, cost, remaining capacity, compression ratio
 
-2. **`check_mcp_server_health()`**: 
+2. **`calculate_token_cost_from_counts(input_tokens, output_tokens, model)`**: 
+   - Calculates cost directly from known token counts
+   - Returns: detailed cost breakdown with pricing information
+
+3. **`check_mcp_server_health()`**: 
    - Checks if the MCP server is running and healthy
    - Returns: server status and connection information
 
@@ -124,13 +134,13 @@ The agent has access to two tools:
 ```
 User Query
     ↓
-SummarizerAgent (Google ADK)
+TokenCostAgent (Google ADK)
     ↓
 MCP TokenStats Server (HTTP REST API)
     ↓
 Gemini API (Token Counting)
     ↓
-Response with Statistics
+Response with Statistics & Costs
 ```
 
 ## Troubleshooting
@@ -165,9 +175,9 @@ If you see credential errors:
 ## Related
 
 - MCP TokenStats Server: `../../mcp-servers/mcp-tokenstats/`
+- MetricsAgent: `../MetricsAgent/`
 - Google ADK Documentation: https://github.com/google/generative-ai-python
 
 ## License
 
 MIT
-

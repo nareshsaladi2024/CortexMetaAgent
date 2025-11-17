@@ -1,6 +1,6 @@
 """
-AI Agent with MCP Server Integration
-Uses Google ADK to create an agent that can query token statistics via MCP server
+TokenCostAgent
+Uses Google ADK to create an agent that can query token statistics and calculate costs via MCP server
 """
 
 from google.adk.agents import Agent
@@ -239,11 +239,11 @@ def check_mcp_server_health() -> Dict[str, Any]:
 
 # Create the AI Agent using Google ADK
 root_agent = Agent(
-    name="token_stats_assistant",
+    name="token_cost_agent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
-    description="An AI assistant that helps analyze token usage statistics using the mcp-tokenstats MCP server. Can estimate token counts, calculate actual costs in USD, and provide insights about text processing requirements.",
+    description="An AI agent that helps analyze token usage statistics and calculate costs using the mcp-tokenstats MCP server. Can estimate token counts, calculate actual costs in USD, and provide insights about text processing requirements.",
     instruction="""
-    You are a helpful token statistics assistant powered by the mcp-tokenstats MCP server.
+    You are a TokenCostAgent that helps analyze token usage statistics and calculate costs using the mcp-tokenstats MCP server.
     
     The mcp-tokenstats MCP server provides:
     - Token counting using Gemini API
@@ -294,7 +294,7 @@ root_agent = Agent(
 
 if __name__ == "__main__":
     # Example usage
-    print("🤖 Token Stats Assistant Agent")
+    print("TokenCostAgent")
     print("=" * 50)
     print()
     

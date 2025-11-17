@@ -9,7 +9,7 @@ CortexEvalAI is a comprehensive automated evaluation and testing framework for A
 - **Workflow Orchestrator**: Coordinates multiple agents in parallel and implements React pattern for automatic monitoring
 - **AutoEvalAgent**: Dynamically generates evaluation test suites (positive, negative, adversarial, stress) using LLM
 - **MCP Servers**: Microservices for agent inventory tracking, token statistics, and reasoning cost estimation
-- **Agent Ecosystem**: RetrieveAgent, ActionExtractor, SummarizerAgent working in parallel
+- **Agent Ecosystem**: Four specialized agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) working in parallel with dedicated MCP server interfaces
 
 ### Architecture
 
@@ -22,9 +22,9 @@ graph TB
     end
     
     subgraph "Agent Layer"
-        B1[RetrieveAgent<br/>Document Retrieval]
-        B2[ActionExtractor<br/>Action Extraction]
-        B3[SummarizerAgent<br/>Document Summarization]
+        B1[MetricsAgent<br/>Agent Metrics & Usage]
+        B2[ReasoningCostAgent<br/>Reasoning Cost Validation]
+        B3[TokenCostAgent<br/>Token Cost Calculation]
         B4[AutoEvalAgent<br/>Test Generation & Execution]
     end
     
@@ -49,8 +49,10 @@ graph TB
     end
     
     A1 --> B3
+    A1 --> B4
     A2 --> B2
     A3 --> B1
+    A3 --> B4
     A3 --> C1
     
     B1 --> C1
@@ -191,21 +193,88 @@ CortexEvalAI addresses these challenges through an integrated system that automa
 
 **Problem**: No centralized way to track agent metadata and usage.
 
-**Solution**: Integration with MCP (Model Control Protocol) servers:
-- **MCP-AgentInventory**: Tracks agent metadata, usage statistics, and last run times
-- **MCP-TokenStats**: Validates token limits for negative test generation
-- **MCP-ReasoningCost**: Estimates reasoning costs for action extraction
+**Solution**: Integration with MCP (Model Control Protocol) servers with dedicated agent-to-server mapping:
+- **MCP-AgentInventory** (`http://localhost:8001`): Tracks agent metadata, usage statistics, and last run times
+  - **Accessed by**: MetricsAgent
+  - **Endpoints**: `/local/agents`, `/deployed/agents`, `/local/agents/{id}/usage`, `/deployed/agents/{id}/usage`
+  - **Integration**: MetricsAgent queries both local (in-memory) and deployed (GCP Reasoning Engine) agents
+- **MCP-TokenStats** (`http://localhost:8000`): Calculates token counts and actual USD costs using official Gemini API pricing
+  - **Accessed by**: TokenCostAgent
+  - **Capabilities**: Token counting, cost calculation from token counts, extended pricing tier support
+  - **Integration**: TokenCostAgent provides real-time token cost calculations for orchestrator
+- **MCP-ReasoningCost** (`http://localhost:8002`): Estimates reasoning costs based on chain-of-thought metrics
+  - **Accessed by**: ReasoningCostAgent
+  - **Capabilities**: Relative cost scoring, actual USD cost calculation when tokens provided, runaway detection
+  - **Integration**: ReasoningCostAgent validates reasoning chains and estimates costs
 
-#### 5. Parallel Agent Orchestration
+**Agent-to-MCP Server Interface Mapping**:
+| Agent | MCP Server | Primary Purpose |
+|-------|-----------|----------------|
+| **MetricsAgent** | `mcp-agent-inventory` | Retrieve agent usage statistics, metrics, and inventory |
+| **ReasoningCostAgent** | `mcp-reasoning-cost` | Estimate reasoning costs and validate chains |
+| **TokenCostAgent** | `mcp-tokenstats` | Calculate token counts and LLM costs |
+| **AutoEvalAgent** | `mcp-agent-inventory`, `mcp-tokenstats` | List agents, validate token limits |
 
-**Problem**: Agents need to work together efficiently in complex workflows.
+#### 5. Parallel Agent Orchestration with Real-Time Cost Tracking
 
-**Solution**: Workflow Orchestrator coordinates multiple agents in parallel:
-- RetrieveAgent, ActionExtractor, and SummarizerAgent execute simultaneously
-- Results are combined and synthesized for comprehensive insights
-- Error handling ensures partial failures don't block entire workflows
+**Problem**: Agents need to work together efficiently in complex workflows with cost visibility.
+
+**Solution**: Workflow Orchestrator coordinates multiple agents in parallel with integrated cost tracking:
+- **Four Agents Working in Parallel**: MetricsAgent, ReasoningCostAgent, TokenCostAgent, and AutoEvalAgent execute simultaneously
+- **Real-Time Token Cost Calculation**: When MetricsAgent pulls agent usage, the orchestrator automatically calls TokenCostAgent to calculate actual USD costs
+- **Cost Integration Flow**: 
+  1. MetricsAgent → queries `mcp-agent-inventory` → gets agent usage (input/output tokens)
+  2. Orchestrator → calls `get_token_cost_realtime()` → calls TokenCostAgent
+  3. TokenCostAgent → queries `mcp-tokenstats` → calculates actual USD cost
+  4. Returns comprehensive cost breakdown: `input_cost_usd`, `output_cost_usd`, `total_cost_usd`
+- **Results Synthesis**: Results from all agents are combined and synthesized for comprehensive insights
+- **Error Handling**: Robust error handling ensures partial failures don't block entire workflows
 
 ### Technical Architecture
+
+#### Agent-to-MCP Server Interface Diagram
+
+```mermaid
+graph TB
+    subgraph "MCP Server Layer"
+        MCP1[mcp-tokenstats<br/>:8000<br/>Token Counting & Cost]
+        MCP2[mcp-agent-inventory<br/>:8001<br/>Agent Metadata & Usage]
+        MCP3[mcp-reasoning-cost<br/>:8002<br/>Reasoning Cost Estimation]
+    end
+    
+    subgraph "Agent Layer - MCP Integration"
+        A1[MetricsAgent<br/>↔ mcp-agent-inventory<br/>Query local & deployed agents]
+        A2[ReasoningCostAgent<br/>↔ mcp-reasoning-cost<br/>Validate reasoning chains]
+        A3[TokenCostAgent<br/>↔ mcp-tokenstats<br/>Calculate token costs]
+        A4[AutoEvalAgent<br/>↔ mcp-agent-inventory<br/>↔ mcp-tokenstats<br/>List agents & validate limits]
+    end
+    
+    subgraph "Orchestrator Layer"
+        O1[Workflow Orchestrator<br/>Coordinates all agents<br/>Real-time cost tracking]
+    end
+    
+    MCP2 --> A1
+    MCP3 --> A2
+    MCP1 --> A3
+    MCP2 --> A4
+    MCP1 --> A4
+    
+    A1 --> O1
+    A2 --> O1
+    A3 --> O1
+    A4 --> O1
+    
+    O1 -->|get_token_cost_realtime| A3
+    
+    style A1 fill:#e1f5ff
+    style A2 fill:#e1f5ff
+    style A3 fill:#e1f5ff
+    style A4 fill:#fff4e1
+    style O1 fill:#e8f5e9
+    style MCP1 fill:#fff9c4
+    style MCP2 fill:#fff9c4
+    style MCP3 fill:#fff9c4
+```
 
 #### Component Interaction Flow
 
@@ -213,14 +282,26 @@ CortexEvalAI addresses these challenges through an integrated system that automa
 sequenceDiagram
     participant Scheduler
     participant Orchestrator
+    participant MetricsAgent
     participant AgentInventory
+    participant TokenCostAgent
+    participant TokenStats
     participant AutoEvalAgent
     participant Evaluator
     participant Agent
     
     Scheduler->>Orchestrator: Trigger React Cycle (every 15 min)
-    Orchestrator->>AgentInventory: List all agents
-    AgentInventory-->>Orchestrator: Agent metadata
+    Orchestrator->>MetricsAgent: Run query to list agents
+    MetricsAgent->>AgentInventory: GET /local/agents & /deployed/agents
+    AgentInventory-->>MetricsAgent: Agent metadata with tokens
+    MetricsAgent-->>Orchestrator: Agent list with usage stats
+    
+    Note over Orchestrator,TokenCostAgent: Real-Time Cost Tracking
+    Orchestrator->>TokenCostAgent: get_token_cost_realtime(agent_id, input_tokens, output_tokens)
+    TokenCostAgent->>TokenStats: POST /tokenize (calculate_cost_from_counts)
+    TokenStats-->>TokenCostAgent: USD cost breakdown
+    TokenCostAgent-->>Orchestrator: Token costs (input_cost_usd, output_cost_usd, total_cost_usd)
+    
     Orchestrator->>Orchestrator: Compare with cache
     
     alt Agent Changed
@@ -233,7 +314,7 @@ sequenceDiagram
         Agent-->>Evaluator: Test results
         Evaluator-->>Orchestrator: PASS/FAIL summary
         
-        Orchestrator->>Orchestrator: Update state cache
+        Orchestrator->>Orchestrator: Update state cache with costs
     else No Changes
         Orchestrator->>Scheduler: Continue waiting
     end
@@ -251,6 +332,16 @@ sequenceDiagram
 
 5. **React Pattern Implementation**: Structured approach to monitoring and responding ensures consistent, reliable agent evaluation.
 
+6. **Centralized Configuration**: All agents use a centralized `config.py` module with `AGENT_MODEL` environment variable, enabling model changes across all agents without code modifications.
+
+7. **Dedicated Agent-to-MCP Server Interfaces**: Each agent has a specialized MCP server interface:
+   - **MetricsAgent** ↔ `mcp-agent-inventory`: Unified interface for local and deployed agent inventory
+   - **ReasoningCostAgent** ↔ `mcp-reasoning-cost`: Reasoning cost estimation with USD cost calculation
+   - **TokenCostAgent** ↔ `mcp-tokenstats`: Token counting and cost calculation with official Gemini pricing
+   - **AutoEvalAgent** ↔ Multiple MCP servers: Agent inventory and token validation
+
+8. **Real-Time Cost Tracking**: Integrated token cost calculation during runtime - when agents are retrieved, their usage tokens are automatically converted to USD costs using official LLM pricing models.
+
 ## Conclusion
 
 ### Achievements
@@ -264,6 +355,9 @@ CortexEvalAI successfully addresses the critical challenges in AI agent developm
 ✅ **Scalability**: System scales automatically as new agents are added  
 ✅ **Configurability**: Flexible configuration via YAML, CLI, or environment variables  
 ✅ **Integration**: Seamless integration with MCP servers for monitoring and statistics  
+✅ **Centralized Configuration**: Single `AGENT_MODEL` environment variable controls all agents  
+✅ **Real-Time Cost Tracking**: Automatic USD cost calculation during agent usage retrieval  
+✅ **Dedicated Agent Interfaces**: Each agent has a specialized MCP server interface for optimal functionality  
 
 ### Impact
 

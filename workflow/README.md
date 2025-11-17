@@ -4,7 +4,7 @@ AI Orchestrator that coordinates multiple agents in parallel for complex workflo
 
 ## Features
 
-- **Parallel Agent Execution**: Coordinate multiple agents (RetrieveAgent, ActionExtractor, SummarizerAgent, AutoEvalAgent) in parallel
+- **Parallel Agent Execution**: Coordinate multiple agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) in parallel
 - **React Pattern**: Automatically monitor agent changes and trigger regression testing
 - **Scheduled Monitoring**: Run React cycles periodically (default: every 15 minutes)
 - **Configurable**: Configuration via YAML file, CLI arguments, or environment variables
@@ -178,16 +178,16 @@ The scheduler runs React cycles periodically based on configuration:
 The orchestrator supports multiple workflow types:
 
 1. **analyze_comprehensive**: Comprehensive analysis using all agents in parallel
-2. **agent_performance**: Agent performance analysis using RetrieveAgent and ActionExtractor
-3. **text_analysis**: Text analysis using SummarizerAgent and ActionExtractor
+2. **agent_performance**: Agent performance analysis using MetricsAgent and ReasoningCostAgent
+3. **text_analysis**: Text analysis using TokenCostAgent and ReasoningCostAgent
 
 ## Agent Integration
 
 The orchestrator integrates with:
 
-- **RetrieveAgent**: Retrieves agent usage statistics from AgentInventory MCP
-- **ActionExtractor**: Extracts actions from reasoning chains and validates reasoning cost
-- **SummarizerAgent**: Analyzes token usage statistics from TokenStats MCP
+- **MetricsAgent**: Retrieves agent usage statistics and metrics from AgentInventory MCP
+- **ReasoningCostAgent**: Extracts actions from reasoning chains and validates reasoning cost
+- **TokenCostAgent**: Analyzes token usage statistics and calculates costs from TokenStats MCP
 - **AutoEvalAgent**: Generates evaluation suites and runs regression tests
 
 ## Troubleshooting

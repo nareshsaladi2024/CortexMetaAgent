@@ -1,4 +1,4 @@
-# ActionExtractor Agent Dependencies
+# ReasoningCostAgent Dependencies
 
 # Google ADK and Vertex AI
 google-adk>=1.18.0

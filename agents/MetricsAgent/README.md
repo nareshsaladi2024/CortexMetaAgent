@@ -1,21 +1,22 @@
-# RetrieveAgent
+# MetricsAgent
 
-AI Agent built with Google ADK that retrieves and analyzes agent usage statistics from the AgentInventory MCP server.
+AI Agent built with Google ADK that retrieves and analyzes agent usage statistics and metrics from the AgentInventory MCP server.
 
 ## Overview
 
-RetrieveAgent specializes in querying agent usage statistics, particularly for the retriever agent. It uses the AgentInventory MCP server to access:
+MetricsAgent specializes in querying agent usage statistics and performance metrics. It uses the AgentInventory MCP server to access:
 - Total runs and failure counts
 - Average input/output tokens
 - Latency percentiles (p50, p95)
 - Success rates
+- Agent performance metrics
 
 ## Features
 
 - **Agent Usage Statistics**: Retrieves detailed usage metrics for any agent
-- **Retriever Agent Focus**: Specializes in querying the retriever agent by default
 - **Performance Analysis**: Analyzes agent performance and identifies bottlenecks
-- **Agent Listing**: Lists all available agents in the inventory
+- **Agent Listing**: Lists all available agents in the inventory (local and deployed)
+- **Metrics Tracking**: Tracks performance metrics including latency, success rates, and token usage
 
 ## Prerequisites
 
@@ -31,7 +32,7 @@ RetrieveAgent specializes in querying agent usage statistics, particularly for t
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\RetrieveAgent"
+cd "C:\AI Agents\CortexEvalAI\agents\MetricsAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -73,7 +74,7 @@ cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-agent-inventory"
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\RetrieveAgent"
+cd "C:\AI Agents\CortexEvalAI\agents\MetricsAgent"
 .\run-agent.ps1
 ```
 
@@ -89,12 +90,12 @@ python test-agent.py
 ```python
 from agent import root_agent
 
-# Get retriever agent usage statistics
+# Get agent usage statistics
 response = root_agent.run("What are the usage statistics for the retriever agent?")
 print(response)
 
 # Get usage for a specific agent
-response = root_agent.run("Get usage statistics for the summarizer agent")
+response = root_agent.run("Get usage statistics for the metrics agent")
 print(response)
 
 # List all agents
@@ -117,11 +118,12 @@ The agent has access to three tools:
 
 1. **`get_agent_usage(agent_id="retriever")`**: 
    - Retrieves usage statistics from AgentInventory MCP server
-   - Queries the `/usage?agent={agent_id}` endpoint
+   - Queries the `/local/agents/{agent_id}/usage` endpoint
    - Returns: total_runs, failures, avg_input_tokens, avg_output_tokens, p50_latency_ms, p95_latency_ms, success_rate
 
-2. **`list_agents()`**: 
+2. **`list_agents(include_deployed=False)`**: 
    - Lists all agents in the inventory
+   - Can include deployed agents from GCP Reasoning Engine
    - Returns: list of agents with metadata
 
 3. **`check_agent_inventory_health()`**: 
@@ -144,13 +146,13 @@ When querying agent usage, you'll receive:
 ```
 User Query
     ↓
-RetrieveAgent (Google ADK)
+MetricsAgent (Google ADK)
     ↓
 AgentInventory MCP Server (HTTP REST API)
     ↓
-GET /usage?agent=retriever
+GET /local/agents/{agent_id}/usage
     ↓
-Usage Statistics Response
+Usage Statistics & Metrics Response
 ```
 
 ## Integration Example
@@ -205,11 +207,10 @@ If you see credential errors:
 ## Related
 
 - AgentInventory MCP Server: `../../mcp-servers/mcp-agent-inventory/`
-- SummarizerAgent: `../SummarizerAgent/`
-- ActionExtractor: `../ActionExtractor/`
+- TokenCostAgent: `../TokenCostAgent/`
+- ReasoningCostAgent: `../ReasoningCostAgent/`
 - Google ADK Documentation: https://github.com/google/generative-ai-python
 
 ## License
 
 MIT
-

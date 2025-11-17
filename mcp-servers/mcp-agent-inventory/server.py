@@ -453,7 +453,7 @@ async def list_gcp_agents_internal():
         )
     
     try:
-        # Use REST API directly (like retrieveAgent.py does) for better compatibility
+        # Use REST API directly (like MetricsAgent does) for better compatibility
         import requests
         from google.auth import default
         from google.auth.transport.requests import Request

@@ -1,5 +1,5 @@
 """
-ActionExtractor Agent
+ReasoningCostAgent
 Uses Google ADK to extract actions from reasoning chains, with ReasoningCost MCP validation
 """
 
@@ -201,11 +201,11 @@ def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[st
 
 # Create the AI Agent using Google ADK
 root_agent = Agent(
-    name="action_extractor",
+    name="reasoning_cost_agent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI agent that extracts actionable items from reasoning chains and validates reasoning cost using the mcp-reasoning-cost MCP server. Can estimate both relative cost scores and actual LLM costs in USD.",
     instruction="""
-    You are an ActionExtractor agent that analyzes reasoning chains to:
+    You are a ReasoningCostAgent that analyzes reasoning chains to:
     1. Extract actionable items and steps from reasoning processes
     2. Validate reasoning chains for cost efficiency using the mcp-reasoning-cost MCP server
     3. Identify and flag expensive or runaway reasoning patterns
@@ -247,7 +247,7 @@ root_agent = Agent(
 
 if __name__ == "__main__":
     # Example usage
-    print("ActionExtractor Agent")
+    print("ReasoningCostAgent")
     print("=" * 50)
     print()
     

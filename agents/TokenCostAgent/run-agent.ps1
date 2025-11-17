@@ -1,9 +1,9 @@
-# PowerShell script to run the Token Stats Assistant Agent
+# PowerShell script to run the TokenCostAgent
 
 # Navigate to script directory
 Set-Location $PSScriptRoot
 
-Write-Host "Token Stats Assistant Agent" -ForegroundColor Green
+Write-Host "TokenCostAgent" -ForegroundColor Green
 Write-Host ("=" * 50) -ForegroundColor Gray
 Write-Host ""
 

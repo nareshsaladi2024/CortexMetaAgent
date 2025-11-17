@@ -1,5 +1,5 @@
 """
-Test script for the Token Stats Assistant Agent
+Test script for the TokenCostAgent
 """
 
 import os
@@ -12,7 +12,7 @@ load_dotenv()
 def test_agent():
     """Test the agent with various queries"""
     
-    print("🤖 Token Stats Assistant Agent - Test Suite")
+    print("TokenCostAgent - Test Suite")
     print("=" * 60)
     print()
     
@@ -56,4 +56,3 @@ def test_agent():
 
 if __name__ == "__main__":
     test_agent()
-

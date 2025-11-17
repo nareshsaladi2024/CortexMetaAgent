@@ -14,15 +14,15 @@ The system uses three specialized MCP servers, each accessed by a corresponding 
 
 | Agent | MCP Server | Server URL (Default) | Purpose |
 |-------|-----------|---------------------|---------|
-| **RetrieveAgent** | `mcp-agent-inventory` | `http://localhost:8001` | Retrieves agent usage statistics and inventory |
-| **ActionExtractor** | `mcp-reasoning-cost` | `http://localhost:8002` | Estimates reasoning costs and validates chains |
-| **SummarizerAgent** | `mcp-tokenstats` | `http://localhost:8000` | Calculates token counts and LLM costs |
+| **MetricsAgent** | `mcp-agent-inventory` | `http://localhost:8001` | Retrieves agent usage statistics, metrics, and inventory |
+| **ReasoningCostAgent** | `mcp-reasoning-cost` | `http://localhost:8002` | Estimates reasoning costs and validates chains |
+| **TokenCostAgent** | `mcp-tokenstats` | `http://localhost:8000` | Calculates token counts and LLM costs |
 
 ## MCP Servers Details
 
 ### 1. mcp-agent-inventory (`http://localhost:8001`)
 
-**Accessed by:** RetrieveAgent
+**Accessed by:** MetricsAgent
 
 **Purpose:**
 - Track agent metadata and execution records
@@ -58,9 +58,9 @@ cd mcp-servers\mcp-agent-inventory
 .\run-server.ps1
 ```
 
-**Usage Example (via RetrieveAgent):**
+**Usage Example (via MetricsAgent):**
 ```python
-from agents.RetrieveAgent.agent import get_agent_usage, list_agents
+from agents.MetricsAgent.agent import get_agent_usage, list_agents
 
 # Get usage for a specific agent
 usage = get_agent_usage("retriever")
@@ -76,7 +76,7 @@ agents = list_agents(include_deployed=True)
 
 ### 2. mcp-reasoning-cost (`http://localhost:8002`)
 
-**Accessed by:** ActionExtractor
+**Accessed by:** ReasoningCostAgent
 
 **Purpose:**
 - Estimate reasoning costs based on chain-of-thought metrics
@@ -147,9 +147,9 @@ cd mcp-servers\mcp-reasoning-cost
 .\run-server.ps1
 ```
 
-**Usage Example (via ActionExtractor):**
+**Usage Example (via ReasoningCostAgent):**
 ```python
-from agents.ActionExtractor.agent import estimate_reasoning_cost
+from agents.ReasoningCostAgent.agent import estimate_reasoning_cost
 
 # Basic reasoning cost (relative score)
 result = estimate_reasoning_cost(
@@ -173,7 +173,7 @@ result = estimate_reasoning_cost(
 
 ### 3. mcp-tokenstats (`http://localhost:8000`)
 
-**Accessed by:** SummarizerAgent
+**Accessed by:** TokenCostAgent
 
 **Purpose:**
 - Count tokens using Gemini API
@@ -249,9 +249,9 @@ cd mcp-servers\mcp-tokenstats
 .\run-server.ps1
 ```
 
-**Usage Example (via SummarizerAgent):**
+**Usage Example (via TokenCostAgent):**
 ```python
-from agents.SummarizerAgent.agent import get_token_stats, calculate_token_cost_from_counts
+from agents.TokenCostAgent.agent import get_token_stats, calculate_token_cost_from_counts
 
 # Get token stats for a prompt
 stats = get_token_stats(
@@ -285,7 +285,7 @@ The **Orchestrator** (`workflow/orchestrator.py`) coordinates all agents and the
         │                   │                   │
         ▼                   ▼                   ▼
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│RetrieveAgent │   │ActionExtractor│   │SummarizerAgent│
+│MetricsAgent │   │ReasoningCostAgent│   │TokenCostAgent│
 └──────────────┘   └──────────────┘   └──────────────┘
         │                   │                   │
         ▼                   ▼                   ▼
@@ -298,10 +298,10 @@ The **Orchestrator** (`workflow/orchestrator.py`) coordinates all agents and the
 
 ### Real-Time Cost Tracking
 
-When RetrieveAgent pulls agent usage:
-1. **RetrieveAgent** → calls `mcp-agent-inventory` → gets agent usage (input/output tokens)
-2. **Orchestrator** → calls `get_token_cost_realtime()` → calls **SummarizerAgent**
-3. **SummarizerAgent** → calls `mcp-tokenstats` → calculates actual USD cost
+When MetricsAgent pulls agent usage:
+1. **MetricsAgent** → calls `mcp-agent-inventory` → gets agent usage (input/output tokens)
+2. **Orchestrator** → calls `get_token_cost_realtime()` → calls **TokenCostAgent**
+3. **TokenCostAgent** → calls `mcp-tokenstats` → calculates actual USD cost
 4. Returns cost breakdown: `input_cost_usd`, `output_cost_usd`, `total_cost_usd`
 
 ## Configuration
@@ -341,7 +341,7 @@ PORT=8001  # For mcp-agent-inventory
 PORT=8002  # For mcp-reasoning-cost
 ```
 
-**Note**: All agents (ActionExtractor, RetrieveAgent, SummarizerAgent, Orchestrator, AutoEvalAgent) now use the `AGENT_MODEL` from `config.py` instead of hardcoded model names. You can change the model for all agents by setting `AGENT_MODEL` in your `.env` file.
+**Note**: All agents (ReasoningCostAgent, MetricsAgent, TokenCostAgent, Orchestrator, AutoEvalAgent) now use the `AGENT_MODEL` from `config.py` instead of hardcoded model names. You can change the model for all agents by setting `AGENT_MODEL` in your `.env` file.
 
 ### Starting All MCP Servers
 
@@ -365,7 +365,7 @@ cd mcp-servers\mcp-reasoning-cost
 
 ## Agent Tools & Interfaces
 
-### RetrieveAgent Tools
+### MetricsAgent Tools
 
 1. **`get_agent_usage(agent_id, mcp_server_url)`**
    - Queries: `GET /local/agents/{agent_id}/usage`
@@ -379,7 +379,7 @@ cd mcp-servers\mcp-reasoning-cost
    - Queries: `GET /health`
    - Returns: Server health status
 
-### ActionExtractor Tools
+### ReasoningCostAgent Tools
 
 1. **`estimate_reasoning_cost(steps, tool_calls, tokens_in_trace, input_tokens, output_tokens, model, mcp_server_url)`**
    - Queries: `POST /estimate`
@@ -389,7 +389,7 @@ cd mcp-servers\mcp-reasoning-cost
    - Queries: `GET /health`
    - Returns: Server health status
 
-### SummarizerAgent Tools
+### TokenCostAgent Tools
 
 1. **`get_token_stats(prompt, model)`**
    - Queries: `POST /tokenize` with `generate=false` or `generate=true`
@@ -477,9 +477,9 @@ cd mcp-servers\mcp-tokenstats
 | mcp-tokenstats | `http://localhost:8000` | Token counting & LLM cost calculation |
 | mcp-agent-inventory | `http://localhost:8001` | Agent inventory & usage tracking |
 | mcp-reasoning-cost | `http://localhost:8002` | Reasoning cost estimation |
-| RetrieveAgent | - | Queries mcp-agent-inventory |
-| ActionExtractor | - | Queries mcp-reasoning-cost |
-| SummarizerAgent | - | Queries mcp-tokenstats |
+| MetricsAgent | - | Queries mcp-agent-inventory |
+| ReasoningCostAgent | - | Queries mcp-reasoning-cost |
+| TokenCostAgent | - | Queries mcp-tokenstats |
 | Orchestrator | - | Coordinates all agents |
 
 ## Troubleshooting

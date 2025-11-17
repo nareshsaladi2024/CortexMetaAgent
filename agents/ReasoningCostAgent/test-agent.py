@@ -1,5 +1,5 @@
 """
-Test script for the ActionExtractor Agent
+Test script for the ReasoningCostAgent
 """
 
 import os
@@ -12,7 +12,7 @@ load_dotenv()
 def test_agent():
     """Test the agent with various queries"""
     
-    print("ActionExtractor Agent - Test Suite")
+    print("ReasoningCostAgent - Test Suite")
     print("=" * 60)
     print()
     

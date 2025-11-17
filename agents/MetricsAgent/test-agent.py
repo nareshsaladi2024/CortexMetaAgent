@@ -1,5 +1,5 @@
 """
-Test script for the RetrieveAgent
+Test script for the MetricsAgent
 """
 
 import os
@@ -12,7 +12,7 @@ load_dotenv()
 def test_agent():
     """Test the agent with various queries"""
     
-    print("RetrieveAgent - Test Suite")
+    print("MetricsAgent - Test Suite")
     print("=" * 60)
     print()
     
@@ -59,4 +59,3 @@ def test_agent():
 
 if __name__ == "__main__":
     test_agent()
-

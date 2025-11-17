@@ -29,9 +29,9 @@ def test_orchestrator():
     
     if not all_available:
         print("⚠️  Some agents are not available. Please install them:")
-        print("   cd ../agents/RetrieveAgent && pip install -r requirements.txt")
-        print("   cd ../agents/ActionExtractor && pip install -r requirements.txt")
-        print("   cd ../agents/SummarizerAgent && pip install -r requirements.txt")
+        print("   cd ../agents/MetricsAgent && pip install -r requirements.txt")
+        print("   cd ../agents/ReasoningCostAgent && pip install -r requirements.txt")
+        print("   cd ../agents/TokenCostAgent && pip install -r requirements.txt")
         print()
     
     # Test parallel agent execution
@@ -40,8 +40,8 @@ def test_orchestrator():
         print("-" * 60)
         try:
             agent_queries = {
-                "RetrieveAgent": "What are the usage statistics for the retriever agent?",
-                "SummarizerAgent": "Analyze token usage for this text: 'Hello world'"
+                "MetricsAgent": "What are the usage statistics for the retriever agent?",
+                "TokenCostAgent": "Analyze token usage for this text: 'Hello world'"
             }
             result = run_agents_parallel(agent_queries)
             print(f"   Status: {result.get('status')}")

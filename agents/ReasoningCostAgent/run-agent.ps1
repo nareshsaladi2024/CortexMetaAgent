@@ -1,9 +1,9 @@
-# PowerShell script to run the ActionExtractor Agent
+# PowerShell script to run the ReasoningCostAgent
 
 # Navigate to script directory
 Set-Location $PSScriptRoot
 
-Write-Host "ActionExtractor Agent" -ForegroundColor Green
+Write-Host "ReasoningCostAgent" -ForegroundColor Green
 Write-Host ("=" * 50) -ForegroundColor Gray
 Write-Host ""
 

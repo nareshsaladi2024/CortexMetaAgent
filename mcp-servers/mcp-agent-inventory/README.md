@@ -32,13 +32,39 @@ Create a `.env` file:
 
 ```env
 PORT=8001
+GCP_PROJECT_ID=your-gcp-project
+GCP_PROJECT_NUMBER=1276251306
+GCP_LOCATION=us-central1
+GCP_API_KEY=AIzaSyCI-zsRP85UVOi0DjtiCwWBwQ1djDy741g
 ```
 
 Or set it in PowerShell:
 
 ```powershell
 $env:PORT = 8001
+$env:GCP_PROJECT_ID = "your-gcp-project"
+$env:GCP_PROJECT_NUMBER = "1276251306"
+$env:GCP_LOCATION = "us-central1"
+$env:GCP_API_KEY = "AIzaSyCI-zsRP85UVOi0DjtiCwWBwQ1djDy741g"
 ```
+
+**Note:** 
+- The `GCP_PROJECT_ID` variable is required for the MCP Reasoning Engine endpoints (`/mcp-reas-engine/*`). 
+- `GCP_PROJECT_NUMBER` is recommended (the numeric project ID, e.g., `1276251306`). If not set, the server will try to fetch it automatically from the project ID, but setting it directly is faster and more reliable.
+- `GCP_LOCATION` is the region where your agents are deployed (defaults to `us-central1`). The server will check this region first, then fall back to `global` if needed.
+- **Authentication**: The Reasoning Engine API requires OAuth2 authentication (not API keys). You must configure one of:
+  - `GOOGLE_APPLICATION_CREDENTIALS`: Path to your GCP service account JSON key file (recommended)
+  - Or run `gcloud auth application-default login` to use your user account
+- `GCP_API_KEY` is optional and only used for fetching project number from Resource Manager API (if `GCP_PROJECT_NUMBER` is not set). The Reasoning Engine API does NOT support API keys and will always use OAuth2.
+- If GCP variables are not set, those endpoints will return errors. The server will still work for local agent inventory tracking without GCP configuration.
+
+**Finding Your Project Number:**
+- Go to: https://console.cloud.google.com/iam-admin/settings?project=your-project-id
+- Or run: `gcloud projects describe your-project-id --format="value(projectNumber)"`
+
+**Setting Up Authentication:**
+- **Service Account (Recommended)**: Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of your service account JSON file
+- **User Account**: Run `gcloud auth application-default login` to authenticate with your user account
 
 ### 3. Run the Server
 

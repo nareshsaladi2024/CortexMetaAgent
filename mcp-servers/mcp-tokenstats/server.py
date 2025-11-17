@@ -6,7 +6,7 @@ Remote server for pulling token usage statistics from Gemini Flash 2.5
 import json
 import os
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
@@ -158,6 +158,132 @@ async def root():
             "tokenize": "POST /tokenize"
         }
     }
+
+
+@app.post("/")
+async def mcp_endpoint(request: Request):
+    """
+    MCP protocol endpoint (JSON-RPC 2.0)
+    Handles MCP protocol messages for MCP Inspector and other MCP clients
+    """
+    try:
+        body = await request.json()
+        
+        # Extract JSON-RPC fields
+        jsonrpc = body.get("jsonrpc", "2.0")
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+        
+        # Handle different MCP methods
+        if method == "initialize":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {}
+                    },
+                    "serverInfo": {
+                        "name": "tokenstats",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        elif method == "tools/list":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": "tokenize",
+                            "description": "Tokenize text and return token usage statistics using Gemini API",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "model": {
+                                        "type": "string",
+                                        "description": "Model name (e.g., gemini-2.5-flash)"
+                                    },
+                                    "prompt": {
+                                        "type": "string",
+                                        "description": "Text to tokenize"
+                                    }
+                                },
+                                "required": ["model", "prompt"]
+                            }
+                        }
+                    ]
+                }
+            }
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            tool_args = params.get("arguments", {})
+            
+            # Helper function to serialize result
+            def serialize_result(result):
+                """Serialize result to JSON string, handling Pydantic models"""
+                if hasattr(result, "model_dump"):
+                    return json.dumps(result.model_dump(), indent=2)
+                elif hasattr(result, "dict"):
+                    return json.dumps(result.dict(), indent=2)
+                else:
+                    return json.dumps(result, indent=2, default=str)
+            
+            # Route to appropriate handler
+            if tool_name == "tokenize":
+                model = tool_args.get("model")
+                prompt = tool_args.get("prompt")
+                if not model or not prompt:
+                    raise HTTPException(status_code=400, detail="model and prompt parameters are required")
+                tokenize_request = TokenizeRequest(model=model, prompt=prompt)
+                result = await tokenize(tokenize_request)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            else:
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method not found: {tool_name}"
+                    }
+                }
+        else:
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                }
+            }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": body.get("id") if "body" in locals() else None,
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            }
+        }
 
 
 @app.get("/health")

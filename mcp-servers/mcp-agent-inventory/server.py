@@ -6,15 +6,38 @@ Remote server for tracking agent metadata, usage, and performance metrics
 import json
 import os
 from typing import Dict, Any, List, Optional
-from datetime import datetime
-from fastapi import FastAPI, HTTPException, Query
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import statistics
 
+# Google Cloud imports (optional - will fail gracefully if not configured)
+try:
+    from google.cloud import aiplatform
+    from google.cloud import monitoring_v3
+    GOOGLE_CLOUD_AVAILABLE = True
+except ImportError:
+    GOOGLE_CLOUD_AVAILABLE = False
+    aiplatform = None
+    monitoring_v3 = None
+
 # Load environment variables
-load_dotenv()
+# Try to load from script directory first, then current directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    load_dotenv()  # Fallback to default behavior
+
+# Google Cloud configuration
+PROJECT_ID = os.getenv("GCP_PROJECT_ID", os.getenv("GOOGLE_CLOUD_PROJECT", ""))
+PROJECT_NUMBER = os.getenv("GCP_PROJECT_NUMBER", "")  # Project number (different from project ID)
+LOCATION = os.getenv("GCP_LOCATION", "us-central1")
+GCP_API_KEY = os.getenv("GCP_API_KEY", "")  # Optional API key for authentication
+# Note: Reasoning Engine API requires location to be "global", not a specific region
 
 # Initialize FastAPI app
 app = FastAPI(title="AgentInventory MCP Server", version="1.0.0")
@@ -344,6 +367,269 @@ async def delete_agent(agent_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Error deleting agent: {str(e)}")
 
 
+# -----------------------------
+# Google Cloud Monitoring APIs
+# -----------------------------
+
+@app.get("/mcp-reas-engine/agents")
+async def list_gcp_agents():
+    """
+    List deployed agents from Google Cloud Vertex AI Reasoning Engine
+    
+    Returns:
+        dict: List of agents with their metadata from GCP
+    """
+    if not GOOGLE_CLOUD_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Cloud libraries not installed. Install with: pip install google-cloud-aiplatform google-cloud-monitoring"
+        )
+    
+    if not PROJECT_ID:
+        raise HTTPException(
+            status_code=400,
+            detail="GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variable must be set"
+        )
+    
+    try:
+        # Use REST API directly (like retrieveAgent.py does) for better compatibility
+        import requests
+        from google.auth import default
+        from google.auth.transport.requests import Request
+        
+        # Get project number if not set
+        project_number = PROJECT_NUMBER
+        if not project_number and PROJECT_ID:
+            try:
+                # Try to get project number from Resource Manager API
+                if GCP_API_KEY:
+                    # Use API key if available
+                    resource_manager_url = f"https://cloudresourcemanager.googleapis.com/v1/projects/{PROJECT_ID}?key={GCP_API_KEY}"
+                    proj_response = requests.get(resource_manager_url, timeout=10)
+                else:
+                    # Use OAuth
+                    credentials, _ = default()
+                    credentials.refresh(Request())
+                    access_token = credentials.token
+                    resource_manager_url = f"https://cloudresourcemanager.googleapis.com/v1/projects/{PROJECT_ID}"
+                    headers = {
+                        "Authorization": f"Bearer {access_token}",
+                        "Content-Type": "application/json"
+                    }
+                    proj_response = requests.get(resource_manager_url, headers=headers, timeout=10)
+                
+                if proj_response.status_code == 200:
+                    proj_data = proj_response.json()
+                    project_number = str(proj_data.get("projectNumber", ""))
+            except Exception:
+                # If we can't get project number, we'll try with project ID (might not work)
+                pass
+        
+        # Use project number if available, otherwise fall back to project ID
+        project_identifier = project_number if project_number else PROJECT_ID
+        
+        if not project_identifier:
+            raise HTTPException(
+                status_code=400,
+                detail="GCP_PROJECT_ID or GCP_PROJECT_NUMBER must be set"
+            )
+        
+        # Prepare authentication - Reasoning Engine API requires OAuth2, not API keys
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        # Use OAuth2 token (required by Reasoning Engine API)
+        try:
+            credentials, _ = default()
+            credentials.refresh(Request())
+            access_token = credentials.token
+            headers["Authorization"] = f"Bearer {access_token}"
+        except Exception as auth_error:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Authentication failed: {str(auth_error)}. Configure GOOGLE_APPLICATION_CREDENTIALS or run 'gcloud auth application-default login'."
+            )
+        
+        result = []
+        last_error = None  # Track the first error we encounter
+        
+        # Try both "global" and the configured region
+        # ADK deploys to specific regions (e.g., us-central1), not global
+        locations_to_try = [LOCATION, "global"]
+        # Remove duplicates while preserving order
+        locations_to_try = list(dict.fromkeys(locations_to_try))
+        
+        for location in locations_to_try:
+            try:
+                # Use REST API endpoint - Reasoning Engine API requires OAuth2
+                # Note: API uses project NUMBER, not project ID
+                # Always use googleapis.com domain (clients6.google.com doesn't support OAuth2 properly)
+                base_url = f"https://{location}-aiplatform.googleapis.com/v1beta1"
+                api_endpoint = f"{base_url}/projects/{project_identifier}/locations/{location}/reasoningEngines?pageSize=50"
+                
+                response = requests.get(api_endpoint, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if "reasoningEngines" in data and data["reasoningEngines"]:
+                        for engine in data["reasoningEngines"]:
+                            # Extract agent ID from full resource name
+                            full_name = engine.get("name", "")
+                            agent_id = full_name.split("/")[-1] if "/" in full_name else full_name
+                            
+                            result.append({
+                                "id": full_name,  # Full resource name
+                                "agent_id": agent_id,  # Short ID
+                                "display_name": engine.get("displayName", agent_id),
+                                "state": engine.get("state", "UNKNOWN"),
+                                "location": location,
+                                "create_time": engine.get("createTime", "").replace("T", " ").replace("Z", "")[:19] if engine.get("createTime") else None,
+                                "update_time": engine.get("updateTime", "").replace("T", " ").replace("Z", "")[:19] if engine.get("updateTime") else None,
+                            })
+                        
+                        # Found agents in this location
+                        break
+                elif response.status_code == 404:
+                    # Location doesn't exist or no agents, try next location
+                    continue
+                else:
+                    # Other error, capture for reporting
+                    try:
+                        error_data = response.json() if response.text else {}
+                        error_msg = error_data.get("error", {}).get("message", response.text or f"HTTP {response.status_code}")
+                    except:
+                        error_msg = f"HTTP {response.status_code}: {response.text[:200] if response.text else 'No response body'}"
+                    
+                    # Store the first error we encounter for reporting
+                    if last_error is None:
+                        last_error = f"Location {location}: {error_msg}"
+                    continue
+                    
+            except Exception as loc_error:
+                # If one location fails, capture error and try the next one
+                error_str = str(loc_error) or type(loc_error).__name__ or "Unknown error"
+                if last_error is None:
+                    last_error = f"Location {location}: {error_str}"
+                continue
+        
+        # If we tried all locations and got no results, report the error if we encountered one
+        if not result and last_error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error listing GCP agents: {last_error}"
+            )
+        
+        return {"agents": result}
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        error_msg = str(e) or type(e).__name__ or "Unknown error"
+        raise HTTPException(status_code=500, detail=f"Error listing GCP agents: {error_msg}")
+
+
+@app.get("/mcp-reas-engine/usage")
+async def get_gcp_agent_usage(agent_id: str = Query(..., description="GCP Agent ID to get usage for")):
+    """
+    Get usage metrics from Google Cloud Monitoring for a specific agent
+    
+    Args:
+        agent_id: The ID of the agent in GCP
+        
+    Returns:
+        dict: Usage metrics from Cloud Monitoring
+    """
+    if not GOOGLE_CLOUD_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Cloud libraries not installed. Install with: pip install google-cloud-aiplatform google-cloud-monitoring"
+        )
+    
+    if not PROJECT_ID:
+        raise HTTPException(
+            status_code=400,
+            detail="GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variable must be set"
+        )
+    
+    try:
+        client = monitoring_v3.MetricServiceClient()
+        
+        interval = monitoring_v3.TimeInterval(
+            end_time=datetime.utcnow(),
+            start_time=datetime.utcnow() - timedelta(hours=1),
+        )
+        
+        # Example metric: request count
+        request_metric = (
+            'metric.type="custom.googleapis.com/vertex/agentengine/request_count" '
+            f'resource.labels.agent_id="{agent_id}"'
+        )
+        
+        series = client.list_time_series(
+            request={
+                "name": f"projects/{PROJECT_ID}",
+                "filter": request_metric,
+                "interval": interval,
+                "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+            }
+        )
+        
+        datapoints = []
+        for ts in series:
+            for pt in ts.points:
+                if hasattr(pt.value, 'int64_value'):
+                    datapoints.append(pt.value.int64_value)
+                elif hasattr(pt.value, 'double_value'):
+                    datapoints.append(int(pt.value.double_value))
+        
+        return {
+            "agent_id": agent_id,
+            "requests_last_hour": sum(datapoints) if datapoints else 0,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting GCP agent usage: {str(e)}")
+
+
+@app.get("/mcp-reas-engine/all")
+async def get_gcp_all():
+    """
+    Get all GCP agents with their usage metrics merged
+    
+    Returns:
+        dict: All agents from GCP with their usage metrics
+    """
+    if not GOOGLE_CLOUD_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Cloud libraries not installed. Install with: pip install google-cloud-aiplatform google-cloud-monitoring"
+        )
+    
+    try:
+        agents_response = await list_gcp_agents()
+        agents = agents_response["agents"]
+        
+        for a in agents:
+            try:
+                # Extract agent ID from the full resource name
+                # Try agent_id field first, then id field
+                agent_id = a.get("agent_id") or (a["id"].split("/")[-1] if "/" in a["id"] else a["id"])
+                usage = await get_gcp_agent_usage(agent_id=agent_id)
+                a["usage"] = usage
+            except Exception as e:
+                # If usage fetch fails, continue without usage data
+                error_str = str(e) or type(e).__name__ or "Unknown error"
+                a["usage"] = {"requests_last_hour": 0, "error": error_str}
+        
+        return {"agents": agents}
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        error_msg = str(e) or type(e).__name__ or "Unknown error"
+        raise HTTPException(status_code=500, detail=f"Error getting all GCP agents: {error_msg}")
+
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -357,10 +643,328 @@ async def root():
             "record_execution": "POST /record_execution",
             "register_agent": "POST /register_agent",
             "delete_agent": "DELETE /agent/{agent_id}",
+            "mcp_reas_engine_agents": "GET /mcp-reas-engine/agents",
+            "mcp_reas_engine_usage": "GET /mcp-reas-engine/usage?agent_id={agent_id}",
+            "mcp_reas_engine_all": "GET /mcp-reas-engine/all",
         },
+        "gcp_available": GOOGLE_CLOUD_AVAILABLE,
+        "gcp_project_id": PROJECT_ID if PROJECT_ID else None,
+        "gcp_project_number": PROJECT_NUMBER if PROJECT_NUMBER else None,
+        "gcp_location": LOCATION,
+        "gcp_oauth2_configured": bool(os.getenv("GOOGLE_APPLICATION_CREDENTIALS")),
+        "gcp_configured": bool(PROJECT_ID),
         "agent_count": len(agent_metadata),
         "total_executions": sum(len(records) for records in execution_records.values()),
     }
+
+
+@app.post("/")
+async def mcp_endpoint(request: Request):
+    """
+    MCP protocol endpoint (JSON-RPC 2.0)
+    Handles MCP protocol messages for MCP Inspector and other MCP clients
+    """
+    try:
+        body = await request.json()
+        
+        # Extract JSON-RPC fields
+        jsonrpc = body.get("jsonrpc", "2.0")
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+        
+        # Handle different MCP methods
+        if method == "initialize":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {}
+                    },
+                    "serverInfo": {
+                        "name": "agent-inventory",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        elif method == "tools/list":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": "list_agents",
+                            "description": "List all agents in the inventory with their metadata",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        },
+                        {
+                            "name": "get_agent_usage",
+                            "description": "Get detailed usage statistics for a specific agent",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent": {
+                                        "type": "string",
+                                        "description": "The ID of the agent"
+                                    }
+                                },
+                                "required": ["agent"]
+                            }
+                        },
+                        {
+                            "name": "register_agent",
+                            "description": "Register or update agent metadata",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string"},
+                                    "description": {"type": "string"},
+                                    "avg_cost": {"type": "number"},
+                                    "avg_latency": {"type": "number"}
+                                },
+                                "required": ["id", "description"]
+                            }
+                        },
+                        {
+                            "name": "record_execution",
+                            "description": "Record an agent execution in the inventory",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {"type": "string"},
+                                    "execution_id": {"type": "string"},
+                                    "timestamp": {"type": "string"},
+                                    "success": {"type": "boolean"},
+                                    "runtime_ms": {"type": "number"},
+                                    "input_tokens": {"type": "integer"},
+                                    "output_tokens": {"type": "integer"},
+                                    "total_tokens": {"type": "integer"},
+                                    "cost_usd": {"type": "number"},
+                                    "error_message": {"type": "string"}
+                                },
+                                "required": ["agent_id"]
+                            }
+                        },
+                        {
+                            "name": "delete_agent",
+                            "description": "Delete an agent and all its execution records",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {"type": "string"}
+                                },
+                                "required": ["agent_id"]
+                            }
+                        },
+                        {
+                            "name": "list_gcp_agents",
+                            "description": "List deployed agents from Google Cloud Vertex AI Reasoning Engine",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        },
+                        {
+                            "name": "get_gcp_agent_usage",
+                            "description": "Get usage metrics from Google Cloud Monitoring for a specific agent",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "agent_id": {
+                                        "type": "string",
+                                        "description": "The ID of the agent in GCP"
+                                    }
+                                },
+                                "required": ["agent_id"]
+                            }
+                        },
+                        {
+                            "name": "get_gcp_all",
+                            "description": "Get all GCP agents with their usage metrics merged",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        }
+                    ]
+                }
+            }
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            tool_args = params.get("arguments", {})
+            
+            # Helper function to serialize result
+            def serialize_result(result):
+                """Serialize result to JSON string, handling Pydantic models"""
+                if hasattr(result, "model_dump"):
+                    return json.dumps(result.model_dump(), indent=2)
+                elif hasattr(result, "dict"):
+                    return json.dumps(result.dict(), indent=2)
+                else:
+                    return json.dumps(result, indent=2, default=str)
+            
+            # Route to appropriate handler
+            if tool_name == "list_agents":
+                result = await list_agents()
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "get_agent_usage":
+                agent_id = tool_args.get("agent")
+                if not agent_id:
+                    raise HTTPException(status_code=400, detail="agent parameter is required")
+                result = await get_agent_usage(agent=agent_id)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "register_agent":
+                metadata = AgentMetadata(**tool_args)
+                result = await register_agent(metadata)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "record_execution":
+                execution = AgentExecution(**tool_args)
+                result = await record_agent_execution(execution)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "delete_agent":
+                agent_id = tool_args.get("agent_id")
+                if not agent_id:
+                    raise HTTPException(status_code=400, detail="agent_id parameter is required")
+                result = await delete_agent(agent_id)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "list_gcp_agents":
+                result = await list_gcp_agents()
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "get_gcp_agent_usage":
+                agent_id = tool_args.get("agent_id")
+                if not agent_id:
+                    raise HTTPException(status_code=400, detail="agent_id parameter is required")
+                result = await get_gcp_agent_usage(agent_id=agent_id)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "get_gcp_all":
+                result = await get_gcp_all()
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            else:
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method not found: {tool_name}"
+                    }
+                }
+        else:
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                }
+            }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": body.get("id") if "body" in locals() else None,
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            }
+        }
 
 
 @app.get("/health")

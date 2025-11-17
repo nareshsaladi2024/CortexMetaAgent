@@ -4,6 +4,41 @@
 # Navigate to script directory
 Set-Location $PSScriptRoot
 
+# Load environment variables from .env file if it exists
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+    Write-Host "Loading environment variables from .env file..." -ForegroundColor Cyan
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]*)\s*=\s*(.*)\s*$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            # Remove quotes if present
+            if ($value -match '^["''](.*)["'']$') {
+                $value = $matches[1]
+            }
+            
+            # Resolve relative paths for GOOGLE_APPLICATION_CREDENTIALS
+            if ($key -eq "GOOGLE_APPLICATION_CREDENTIALS" -and $value) {
+                if (-not [System.IO.Path]::IsPathRooted($value)) {
+                    # Path is relative, resolve it relative to .env file location
+                    $resolvedPath = Join-Path $PSScriptRoot $value
+                    $resolvedPath = [System.IO.Path]::GetFullPath($resolvedPath)
+                    if (Test-Path $resolvedPath) {
+                        $value = $resolvedPath
+                        Write-Host "  Resolved relative path to: $value" -ForegroundColor Gray
+                    } else {
+                        Write-Host "  Warning: GOOGLE_APPLICATION_CREDENTIALS path not found: $resolvedPath" -ForegroundColor Yellow
+                    }
+                }
+            }
+            
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+            Write-Host "  Loaded: $key" -ForegroundColor Gray
+        }
+    }
+    Write-Host ""
+}
+
 Write-Host "Starting AgentInventory MCP Server..." -ForegroundColor Green
 Write-Host ("=" * 50) -ForegroundColor Gray
 Write-Host ""
@@ -13,6 +48,34 @@ if (-not $env:PORT) {
     $env:PORT = 8001
     Write-Host "Using default port: 8001" -ForegroundColor Cyan
     Write-Host "Set `$env:PORT to use a different port" -ForegroundColor Gray
+    Write-Host ""
+} else {
+    Write-Host "Using port from .env: $env:PORT" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# Display GCP configuration if set
+if ($env:GCP_PROJECT_ID) {
+    Write-Host "GCP Configuration:" -ForegroundColor Cyan
+    Write-Host "  Project ID: $env:GCP_PROJECT_ID" -ForegroundColor White
+    Write-Host "  Location: $(if ($env:GCP_LOCATION) { $env:GCP_LOCATION } else { 'us-central1 (default)' })" -ForegroundColor White
+    Write-Host "  Reasoning Engine Location: global (required by API)" -ForegroundColor White
+    if ($env:GOOGLE_APPLICATION_CREDENTIALS) {
+        if (Test-Path $env:GOOGLE_APPLICATION_CREDENTIALS) {
+            Write-Host "  Credentials: $env:GOOGLE_APPLICATION_CREDENTIALS" -ForegroundColor Green
+            Write-Host "    [OK] Service account file found" -ForegroundColor Gray
+        } else {
+            Write-Host "  Credentials: $env:GOOGLE_APPLICATION_CREDENTIALS" -ForegroundColor Red
+            Write-Host "    [ERROR] Service account file NOT found!" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "  Credentials: Not set (using default GCP authentication)" -ForegroundColor Yellow
+        Write-Host "    Set GOOGLE_APPLICATION_CREDENTIALS in .env for service account auth" -ForegroundColor Gray
+    }
+    Write-Host ""
+} else {
+    Write-Host "GCP Configuration: Not set (MCP Reasoning Engine endpoints will not work)" -ForegroundColor Yellow
+    Write-Host "  Add GCP_PROJECT_ID to .env file to enable GCP features" -ForegroundColor Gray
     Write-Host ""
 }
 
@@ -47,7 +110,8 @@ if ($python -match "\.exe$") {
     & $python server.py
 } elseif (Test-Path "$python.exe") {
     # Add .exe if it exists
-    & "$python.exe" server.py
+    $pythonExe = "$python.exe"
+    & $pythonExe server.py
 } else {
     # Use as-is (should work if in PATH)
     & $python server.py

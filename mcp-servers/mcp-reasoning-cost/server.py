@@ -6,7 +6,7 @@ Remote server for estimating reasoning costs based on chain-of-thought metrics
 import json
 import os
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -199,7 +199,11 @@ async def estimate_multiple_traces(request: Dict[str, Any]) -> Dict[str, Any]:
             trace = Trace(**trace_data)
             estimate_request = EstimateRequest(trace=trace)
             estimate = await estimate_reasoning_cost(estimate_request)
-            estimates.append(estimate.dict())
+            # Support both Pydantic v1 and v2
+            if hasattr(estimate, "model_dump"):
+                estimates.append(estimate.model_dump())
+            else:
+                estimates.append(estimate.dict())
         
         return {
             "estimates": estimates,
@@ -230,6 +234,173 @@ async def root():
             "Evaluating reasoning compression strategies"
         ]
     }
+
+
+@app.post("/")
+async def mcp_endpoint(request: Request):
+    """
+    MCP protocol endpoint (JSON-RPC 2.0)
+    Handles MCP protocol messages for MCP Inspector and other MCP clients
+    """
+    try:
+        body = await request.json()
+        
+        # Extract JSON-RPC fields
+        jsonrpc = body.get("jsonrpc", "2.0")
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+        
+        # Handle different MCP methods
+        if method == "initialize":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {}
+                    },
+                    "serverInfo": {
+                        "name": "reasoning-cost",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        elif method == "tools/list":
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": "estimate_reasoning_cost",
+                            "description": "Estimate reasoning cost based on trace metrics (steps, tool calls, tokens)",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "trace": {
+                                        "type": "object",
+                                        "properties": {
+                                            "steps": {"type": "integer", "description": "Number of reasoning steps"},
+                                            "tool_calls": {"type": "integer", "description": "Number of tool invocations"},
+                                            "tokens_in_trace": {"type": "integer", "description": "Total tokens in the reasoning trace"}
+                                        },
+                                        "required": ["steps", "tool_calls", "tokens_in_trace"]
+                                    }
+                                },
+                                "required": ["trace"]
+                            }
+                        },
+                        {
+                            "name": "estimate_multiple_traces",
+                            "description": "Estimate reasoning cost for multiple traces (batch processing)",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "traces": {
+                                        "type": "array",
+                                        "description": "List of trace objects",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "steps": {"type": "integer"},
+                                                "tool_calls": {"type": "integer"},
+                                                "tokens_in_trace": {"type": "integer"}
+                                            },
+                                            "required": ["steps", "tool_calls", "tokens_in_trace"]
+                                        }
+                                    }
+                                },
+                                "required": ["traces"]
+                            }
+                        }
+                    ]
+                }
+            }
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            tool_args = params.get("arguments", {})
+            
+            # Helper function to serialize result
+            def serialize_result(result):
+                """Serialize result to JSON string, handling Pydantic models"""
+                if hasattr(result, "model_dump"):
+                    return json.dumps(result.model_dump(), indent=2)
+                elif hasattr(result, "dict"):
+                    return json.dumps(result.dict(), indent=2)
+                else:
+                    return json.dumps(result, indent=2, default=str)
+            
+            # Route to appropriate handler
+            if tool_name == "estimate_reasoning_cost":
+                trace_data = tool_args.get("trace")
+                if not trace_data:
+                    raise HTTPException(status_code=400, detail="trace parameter is required")
+                trace = Trace(**trace_data)
+                estimate_request = EstimateRequest(trace=trace)
+                result = await estimate_reasoning_cost(estimate_request)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "estimate_multiple_traces":
+                traces = tool_args.get("traces")
+                if not traces:
+                    raise HTTPException(status_code=400, detail="traces parameter is required")
+                result = await estimate_multiple_traces({"traces": traces})
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            else:
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method not found: {tool_name}"
+                    }
+                }
+        else:
+            response = {
+                "jsonrpc": jsonrpc,
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                }
+            }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": body.get("id") if "body" in locals() else None,
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            }
+        }
 
 
 @app.get("/health")

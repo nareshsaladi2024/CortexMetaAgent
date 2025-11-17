@@ -1,319 +1,219 @@
 # Workflow Orchestrator
 
-AI Orchestrator built with Google ADK that coordinates multiple agents and MCP servers for complex workflows.
-
-## Overview
-
-The Workflow Orchestrator manages and coordinates interactions between:
-- Multiple AI agents executed in parallel:
-  - **RetrieveAgent**: Retrieves agent usage statistics
-  - **ActionExtractor**: Extracts actions and validates reasoning cost
-  - **SummarizerAgent**: Analyzes token usage statistics
-- Complex workflows that span multiple agents
-- Parallel execution for improved performance
+AI Orchestrator that coordinates multiple agents in parallel for complex workflows and implements the React pattern to automatically monitor and respond to agent changes.
 
 ## Features
 
-- **Parallel Agent Execution**: Runs multiple agents concurrently for improved performance
-- **Multi-Agent Coordination**: Coordinates workflows across RetrieveAgent, ActionExtractor, and SummarizerAgent
-- **Workflow Orchestration**: Manages complex multi-step workflows
-- **Agent Health Monitoring**: Checks availability of all agents
-- **Error Handling**: Gracefully handles errors in parallel execution
+- **Parallel Agent Execution**: Coordinate multiple agents (RetrieveAgent, ActionExtractor, SummarizerAgent, AutoEvalAgent) in parallel
+- **React Pattern**: Automatically monitor agent changes and trigger regression testing
+- **Scheduled Monitoring**: Run React cycles periodically (default: every 15 minutes)
+- **Configurable**: Configuration via YAML file, CLI arguments, or environment variables
 
-## Prerequisites
+## React Pattern
 
-1. **All Agents**: The agents must be properly installed:
-   - RetrieveAgent: `../agents/RetrieveAgent/`
-   - ActionExtractor: `../agents/ActionExtractor/`
-   - SummarizerAgent: `../agents/SummarizerAgent/`
+The orchestrator implements the React pattern (ReAct: Reasoning and Acting) to automatically monitor and respond to agent changes:
 
-2. **MCP Servers**: MCP servers should be running (required by the agents):
-   - TokenStats MCP: `http://localhost:8000` (for SummarizerAgent)
-   - ReasoningCost MCP: `http://localhost:8002` (for ActionExtractor)
-   - AgentInventory MCP: `http://localhost:8001` (for RetrieveAgent)
+1. **OBSERVE**: Detect agent configuration, code, or redeployment changes
+2. **THINK**: Analyze changes and determine appropriate actions
+3. **ACT**: Execute regression tests (positive tests - expect PASS) and generate negative test cases
+4. **OBSERVE AGAIN**: Verify results and update state cache
 
-3. **Google Cloud Credentials**: Configure one of the following:
-   - Service account key file
-   - Application Default Credentials
-   - Google Cloud project credentials
+### React Pattern Rules
 
-## Setup
+When agent config/code/redeployment changes are detected:
 
-### 1. Install Dependencies
+- **Regression Testing**: Run positive test cases (expect PASS) using AutoEvalAgent
+- **Negative Test Generation**: Generate negative test cases dynamically through AutoEvalAgent
+- **Automatic Response**: No manual intervention required
 
-```powershell
-cd "C:\AI Agents\CortexEvalAI\workflow"
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+## Installation
+
+1. Install dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables
-
-Create a `.env` file or set environment variables:
-
-```powershell
-# Google Cloud Configuration (choose one)
-$env:GOOGLE_APPLICATION_CREDENTIALS = "path\to\your-service-account-key.json"
-# OR
-$env:GOOGLE_CLOUD_PROJECT = "your-project-id"
-$env:GOOGLE_CLOUD_LOCATION = "us-central1"
-
-# MCP Server URLs (optional, defaults provided)
-$env:MCP_TOKENSTATS_URL = "http://localhost:8000"
-$env:MCP_REASONING_COST_URL = "http://localhost:8002"
-$env:MCP_AGENT_INVENTORY_URL = "http://localhost:8001"
-```
-
-Or use `.env` file:
-```env
-GOOGLE_APPLICATION_CREDENTIALS=path/to/your-service-account-key.json
+2. Configure environment variables (`.env` file or environment):
+```bash
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 MCP_TOKENSTATS_URL=http://localhost:8000
-MCP_REASONING_COST_URL=http://localhost:8002
 MCP_AGENT_INVENTORY_URL=http://localhost:8001
+MCP_REASONING_COST_URL=http://localhost:8002
 ```
 
-### 3. Install All Agents
+## Configuration
 
-Make sure all agents are installed with their dependencies:
+### Config File (config.yaml)
 
-```powershell
-# Install RetrieveAgent
-cd "C:\AI Agents\CortexEvalAI\agents\RetrieveAgent"
-pip install -r requirements.txt
+The orchestrator can be configured via `config.yaml`:
 
-# Install ActionExtractor
-cd "C:\AI Agents\CortexEvalAI\agents\ActionExtractor"
-pip install -r requirements.txt
+```yaml
+# Scheduler Settings
+scheduler:
+  enabled: true          # Enable automatic React cycle scheduling
+  interval_minutes: 15   # Interval between React cycles (in minutes)
+  run_on_start: true     # Run immediately on start
+  cycle_timeout: 300     # Timeout for each cycle (in seconds)
 
-# Install SummarizerAgent
-cd "C:\AI Agents\CortexEvalAI\agents\SummarizerAgent"
-pip install -r requirements.txt
+# React Cycle Settings
+react_cycle:
+  monitor_agent_ids: []  # Monitor specific agents (empty = all)
+  change_types: []       # Specific change types to react to (empty = all)
+
+# Regression Testing Settings
+regression_testing:
+  method: "pytest"       # Method: "pytest" or "adk_cli"
+  suite_dir: "eval_suites"
+
+# Negative Test Generation Settings
+negative_test_generation:
+  count: 600             # Number of negative test cases to generate
+  force_regenerate: false
+
+# Logging Settings
+logging:
+  level: "INFO"          # Log level: DEBUG, INFO, WARNING, ERROR
+  log_file: null         # Log file path (null = stdout only)
+  log_cycle_results: true
 ```
 
-### 4. Start MCP Servers (if not already running)
+### Environment Variables
 
-The agents require their respective MCP servers:
+You can also configure via environment variables:
 
-**Terminal 1 - TokenStats (for SummarizerAgent):**
-```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-tokenstats"
-.\run-server.ps1
+```bash
+ORCHESTRATOR_SCHEDULER_ENABLED=true
+ORCHESTRATOR_INTERVAL_MINUTES=15
+ORCHESTRATOR_RUN_ON_START=true
+ORCHESTRATOR_CYCLE_TIMEOUT=300
 ```
 
-**Terminal 2 - ReasoningCost (for ActionExtractor):**
-```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-reasoning-cost"
-.\run-server.ps1
-```
+### CLI Arguments
 
-**Terminal 3 - AgentInventory (for RetrieveAgent):**
-```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-agent-inventory"
-.\run-server.ps1
-```
+Configuration can be overridden via CLI arguments:
 
-### 5. Run the Orchestrator
+```bash
+# Start scheduler (every 15 minutes by default)
+python orchestrator.py --scheduler
 
-```powershell
-cd "C:\AI Agents\CortexEvalAI\workflow"
-.\run-orchestrator.ps1
-```
+# Start scheduler with custom interval (30 minutes)
+python orchestrator.py --scheduler --interval 30
 
-Or test the orchestrator:
-```powershell
-python test-orchestrator.py
+# Use custom config file
+python orchestrator.py --scheduler --config custom-config.yaml
+
+# Run React cycle once (no scheduler)
+python orchestrator.py --cycle-once
+
+# Run React cycle for specific agent
+python orchestrator.py --cycle-once --agent-id retriever
+
+# Check agent availability
+python orchestrator.py --check-agents
+
+# Show help
+python orchestrator.py --help
 ```
 
 ## Usage
 
-### Programmatic Usage
+### Run with Scheduler (Recommended)
 
-```python
-from orchestrator import orchestrator_agent, orchestrate_workflow, check_all_agents, run_agents_parallel
+Start the orchestrator with scheduler mode to run React cycles periodically:
 
-# Check all agents
-agent_status = check_all_agents()
-print(agent_status)
-
-# Orchestrate a workflow
-result = orchestrate_workflow(
-    "analyze_comprehensive",
-    text="The quick brown fox jumps over the lazy dog.",
-    agent_id="retriever"
-)
-print(result)
-
-# Run agents in parallel directly
-agent_queries = {
-    "RetrieveAgent": "What are the usage statistics for the retriever agent?",
-    "SummarizerAgent": "Analyze token usage for this text: 'Hello world'"
-}
-parallel_results = run_agents_parallel(agent_queries)
-print(parallel_results)
-
-# Use the orchestrator agent
-response = orchestrator_agent.run("Analyze this text comprehensively: 'The quick brown fox'")
-print(response)
+```bash
+python orchestrator.py --scheduler
 ```
 
-### Available Workflows
+This will:
+- Load configuration from `config.yaml` (if exists)
+- Start scheduler running React cycles every 15 minutes (configurable)
+- Run first cycle immediately on start (if `run_on_start: true`)
+- Keep running until interrupted (Ctrl+C)
 
-#### 1. analyze_comprehensive
-Comprehensive analysis using all agents in parallel.
+### Run Once
 
-```python
-result = orchestrate_workflow(
-    "analyze_comprehensive",
-    text="The quick brown fox jumps over the lazy dog.",
-    agent_id="retriever"
-)
+Run a single React cycle and exit:
+
+```bash
+python orchestrator.py --cycle-once
 ```
 
-This workflow runs in parallel:
-- **SummarizerAgent**: Token usage analysis
-- **RetrieveAgent**: Agent performance metrics
-- **ActionExtractor**: Action extraction
+### Check Agent Status
 
-#### 2. agent_performance
-Agent performance analysis using RetrieveAgent and ActionExtractor in parallel.
+Check availability of all agents:
 
-```python
-result = orchestrate_workflow(
-    "agent_performance",
-    agent_id="retriever",
-    reasoning_steps=8,
-    tool_calls=3,
-    tokens=1189
-)
+```bash
+python orchestrator.py --check-agents
 ```
 
-This workflow runs in parallel:
-- **RetrieveAgent**: Usage statistics
-- **ActionExtractor**: Reasoning validation and action extraction
+## Scheduler Behavior
 
-#### 3. text_analysis
-Text analysis using SummarizerAgent and ActionExtractor in parallel.
+The scheduler runs React cycles periodically based on configuration:
 
-```python
-result = orchestrate_workflow(
-    "text_analysis",
-    text="The quick brown fox jumps over the lazy dog."
-)
-```
+1. **On Start**: If `run_on_start: true`, runs first cycle immediately
+2. **Periodic Execution**: Runs React cycle every `interval_minutes` minutes
+3. **Change Detection**: Detects agent changes (config/code/redeployment)
+4. **Automatic Actions**: Triggers regression tests and negative test generation
+5. **Logging**: Logs cycle results (if `log_cycle_results: true`)
 
-This workflow runs in parallel:
-- **SummarizerAgent**: Token statistics
-- **ActionExtractor**: Action extraction
-
-## Orchestrator Tools
-
-The orchestrator has access to six tools:
-
-1. **`run_retrieve_agent(query)`**: 
-   - Runs the RetrieveAgent with a query
-   
-2. **`run_action_extractor(query)`**: 
-   - Runs the ActionExtractor agent with a query
-   
-3. **`run_summarizer_agent(query)`**: 
-   - Runs the SummarizerAgent with a query
-   
-4. **`run_agents_parallel(agent_queries)`**: 
-   - Runs multiple agents in parallel
-   - Takes a dict: `{"RetrieveAgent": "query", "ActionExtractor": "query", ...}`
-   
-5. **`orchestrate_workflow(workflow_type, **params)`**: 
-   - Orchestrates complex multi-step workflows with parallel agent execution
-   
-6. **`check_all_agents()`**: 
-   - Checks availability of all agents
-
-## Architecture
+### Example Output
 
 ```
-User Request
-    ↓
-Workflow Orchestrator (Google ADK)
-    ↓
-┌──────────────┬─────────────────┬─────────────────┐
-│ RetrieveAgent│ ActionExtractor │ SummarizerAgent │
-│              │                 │                 │
-│ (Parallel)   │ (Parallel)      │ (Parallel)      │
-└──────┬───────┴────────┬────────┴────────┬────────┘
-       │                │                 │
-       ↓                ↓                 ↓
-┌─────────────┬──────────────┬──────────────┐
-│ AgentInv    │ ReasoningCost│ TokenStats   │
-│ MCP (8001)  │ MCP (8002)   │ MCP (8000)   │
-└─────────────┴──────────────┴──────────────┘
-    ↓
-Orchestrated Response (Combined Results)
+[2024-01-15 10:00:00] Running scheduled React cycle...
+🔍 OBSERVE: Detecting agent changes...
+🤔 THINK: Analyzing changes and determining actions...
+⚡ ACT: Reacting to agent changes...
+  Running regression test for retriever using positive test cases (expect PASS)...
+  Generating negative test cases for retriever...
+🔍 OBSERVE: Verifying results...
+[2024-01-15 10:00:05] React cycle completed: success
+  Detected 1 changed agent(s)
+    - retriever: config_changed, redeployed
 ```
 
-## Example Queries
+## Workflows
 
-- "Get comprehensive metrics for the retriever agent"
-- "Analyze this text for token usage: 'The quick brown fox'"
-- "Validate this reasoning chain: 8 steps, 3 tool calls, 1189 tokens"
-- "Check the health of all MCP servers"
-- "Orchestrate a workflow to analyze text and validate reasoning"
+The orchestrator supports multiple workflow types:
 
-## Integration Example
+1. **analyze_comprehensive**: Comprehensive analysis using all agents in parallel
+2. **agent_performance**: Agent performance analysis using RetrieveAgent and ActionExtractor
+3. **text_analysis**: Text analysis using SummarizerAgent and ActionExtractor
 
-To integrate with your system:
+## Agent Integration
 
-```python
-from orchestrator import orchestrator_agent, orchestrate_workflow
+The orchestrator integrates with:
 
-# Simple query
-response = orchestrator_agent.run("Get metrics for retriever agent")
-print(response)
-
-# Direct workflow orchestration
-result = orchestrate_workflow(
-    "validate_reasoning",
-    steps=8,
-    tool_calls=3,
-    tokens=1189,
-    agent_id="retriever",
-    runtime_ms=420.0
-)
-print(result)
-```
+- **RetrieveAgent**: Retrieves agent usage statistics from AgentInventory MCP
+- **ActionExtractor**: Extracts actions from reasoning chains and validates reasoning cost
+- **SummarizerAgent**: Analyzes token usage statistics from TokenStats MCP
+- **AutoEvalAgent**: Generates evaluation suites and runs regression tests
 
 ## Troubleshooting
 
-### MCP Servers Not Running
+### Scheduler Not Starting
 
-If you see connection errors:
-1. Check that all MCP servers are running on their respective ports
-2. Use `check_all_mcp_servers()` to verify health
-3. Start missing servers using their respective `run-server.ps1` scripts
+- Check that `scheduler.enabled: true` in config.yaml
+- Or use `--scheduler` CLI flag (enables scheduler automatically)
+- Verify AutoEvalAgent is available: `python orchestrator.py --check-agents`
 
-### Google Cloud Credentials Error
+### No Changes Detected
 
-If you see credential errors:
-1. Set `GOOGLE_APPLICATION_CREDENTIALS` to a valid service account key
-2. OR run: `gcloud auth application-default login`
-3. OR set `GOOGLE_CLOUD_PROJECT` and ensure you're authenticated
+- First run may not detect changes (no baseline in cache)
+- Check that AgentInventory MCP is running: `http://localhost:8001`
+- Verify agents are registered in AgentInventory MCP
+
+### Errors in React Cycle
+
+- Check that eval suites exist for agents
+- Verify AutoEvalAgent is properly configured
+- Check logs for specific error messages
 
 ## Files
 
-- `orchestrator.py`: Main orchestrator implementation with Google ADK
-- `test-orchestrator.py`: Test script for the orchestrator
-- `run-orchestrator.ps1`: PowerShell script to run the orchestrator
+- `orchestrator.py`: Main orchestrator implementation
+- `config.yaml`: Configuration file (optional)
 - `requirements.txt`: Python dependencies
-
-## Related
-
-- Agents: `../agents/`
-- MCP Servers: `../mcp-servers/`
-- Google ADK Documentation: https://github.com/google/generative-ai-python
-
-## License
-
-MIT
-
+- `.agent_state_cache.json`: Agent state cache (auto-generated)
+- `run-orchestrator.ps1`: PowerShell script to run orchestrator

@@ -1,9 +1,10 @@
-# TokenStats MCP Server
+# TokenStats MCP Server with AI Agent
 
-Remote MCP (Model Control Protocol) server for pulling token usage statistics from Gemini Flash 2.5.
+Remote MCP (Model Control Protocol) server for pulling token usage statistics from Gemini Flash 2.5, integrated with a Google ADK AI Agent.
 
 ## Features
 
+### MCP Server
 - **Token Counting**: Accurate token counting using Gemini API
 - **Cost Estimation**: Calculate estimated costs based on token usage
 - **Statistics**: Provides comprehensive token statistics including:
@@ -13,12 +14,18 @@ Remote MCP (Model Control Protocol) server for pulling token usage statistics fr
   - Maximum tokens remaining
   - Compression ratio
 
+### AI Agent (Google ADK)
+- **Natural Language Interface**: Ask about token usage in plain English
+- **MCP Integration**: Automatically queries the MCP server for token statistics
+- **Health Monitoring**: Can check MCP server status
+- **Intelligent Analysis**: Provides insights about token usage and costs
+
 ## Setup
 
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CapstoneProject\mcp-tokenstats"
+cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-tokenstats"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -72,6 +79,62 @@ uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 The server will start on `http://localhost:8000`
+
+## AI Agent Setup
+
+### 1. Configure Google Cloud Credentials
+
+The agent requires Google Cloud credentials for Vertex AI. Choose one:
+
+**Option A: Service Account Key**
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = "path\to\your-service-account-key.json"
+```
+
+**Option B: Application Default Credentials**
+```powershell
+gcloud auth application-default login
+```
+
+**Option C: Environment Variables**
+```powershell
+$env:GOOGLE_CLOUD_PROJECT = "your-project-id"
+$env:GOOGLE_CLOUD_LOCATION = "us-central1"
+```
+
+### 2. Configure MCP Server URL (Optional)
+
+By default, the agent connects to `http://localhost:8000`. To use a different URL:
+
+```powershell
+$env:MCP_TOKENSTATS_URL = "http://your-server:8000"
+```
+
+### 3. Run the Agent
+
+**Start the MCP server first** (in one terminal):
+```powershell
+.\run-server.ps1
+```
+
+**Then run the agent** (in another terminal):
+```powershell
+.\run-agent.ps1
+```
+
+Or test the agent directly:
+```powershell
+python test-agent.py
+```
+
+Or use the agent programmatically:
+```python
+from agent import root_agent
+
+# Run a query
+response = root_agent.run("What's the token count for 'Hello, world!'?")
+print(response)
+```
 
 ## API Endpoints
 

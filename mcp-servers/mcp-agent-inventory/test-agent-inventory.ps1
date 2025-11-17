@@ -12,6 +12,18 @@ if (Test-Path $envFile) {
             if ($value -match '^["''](.*)["'']$') {
                 $value = $matches[1]
             }
+            
+            # Resolve relative paths for GOOGLE_APPLICATION_CREDENTIALS
+            if ($key -eq "GOOGLE_APPLICATION_CREDENTIALS" -and $value -and -not [System.IO.Path]::IsPathRooted($value)) {
+                $resolvedPath = Join-Path $PSScriptRoot $value
+                if (Test-Path $resolvedPath) {
+                    $value = $resolvedPath
+                    Write-Host "  Resolved relative path to: $value" -ForegroundColor Gray
+                } else {
+                    Write-Host "  Warning: GOOGLE_APPLICATION_CREDENTIALS path not found: $resolvedPath" -ForegroundColor Yellow
+                }
+            }
+            
             [Environment]::SetEnvironmentVariable($key, $value, "Process")
         }
     }
@@ -100,13 +112,13 @@ try {
     exit 1
 }
 
-# Test 3: List Agents
-Write-Host "Test 3: List Agents" -ForegroundColor Yellow
+# Test 3: List Local Agents
+Write-Host "Test 3: List Local Agents" -ForegroundColor Yellow
 try {
-    $response = Invoke-RestMethod -Uri "$SERVER_URL/list_agents" -Method GET
+    $response = Invoke-RestMethod -Uri "$SERVER_URL/local/agents" -Method GET
     
-    Write-Host "Agents listed successfully!" -ForegroundColor Green
-    Write-Host "  Total agents: $($response.total_count)" -ForegroundColor White
+    Write-Host "Local agents listed successfully!" -ForegroundColor Green
+    Write-Host "  Total agents: $($response.agents.Count)" -ForegroundColor White
     Write-Host ""
     
     if ($response.agents.Count -gt 0) {
@@ -179,11 +191,11 @@ for ($i = 1; $i -le 5; $i++) {
 Write-Host "Additional executions recorded" -ForegroundColor Green
 Write-Host ""
 
-# Test 6: Get Agent Usage
-Write-Host "Test 6: Get Agent Usage" -ForegroundColor Yellow
+# Test 6: Get Local Agent Usage
+Write-Host "Test 6: Get Local Agent Usage" -ForegroundColor Yellow
 $agentId = "retriever"
 try {
-    $response = Invoke-RestMethod -Uri "$SERVER_URL/usage?agent=$agentId" -Method GET
+    $response = Invoke-RestMethod -Uri "$SERVER_URL/local/agents/$agentId/usage" -Method GET
     
     Write-Host "Agent usage retrieved successfully!" -ForegroundColor Green
     Write-Host ""
@@ -270,14 +282,14 @@ try {
 
 Write-Host ""
 
-# Test 9: MCP Protocol - Call Tool: list_agents
-Write-Host "Test 9: MCP Protocol - Call Tool: list_agents" -ForegroundColor Yellow
+# Test 9: MCP Protocol - Call Tool: list_local_agents
+Write-Host "Test 9: MCP Protocol - Call Tool: list_local_agents" -ForegroundColor Yellow
 $mcpListAgentsRequest = @{
     jsonrpc = "2.0"
     id = 3
     method = "tools/call"
     params = @{
-        name = "list_agents"
+        name = "list_local_agents"
         arguments = @{}
     }
 } | ConvertTo-Json -Depth 10
@@ -288,13 +300,13 @@ try {
         -ContentType "application/json" `
         -Body $mcpListAgentsRequest
     
-    Write-Host "MCP list_agents tool called successfully!" -ForegroundColor Green
+    Write-Host "MCP list_local_agents tool called successfully!" -ForegroundColor Green
     $resultText = $response.result.content[0].text
     $resultObj = $resultText | ConvertFrom-Json
     Write-Host "  Agents found: $($resultObj.agents.Count)" -ForegroundColor White
     Write-Host ""
 } catch {
-    Write-Host "Failed to call MCP list_agents tool: $_" -ForegroundColor Red
+    Write-Host "Failed to call MCP list_local_agents tool: $_" -ForegroundColor Red
     if ($_.ErrorDetails.Message) {
         Write-Host "Error details: $($_.ErrorDetails.Message)" -ForegroundColor Red
     }
@@ -302,16 +314,16 @@ try {
 
 Write-Host ""
 
-# Test 10: MCP Protocol - Call Tool: get_agent_usage
-Write-Host "Test 10: MCP Protocol - Call Tool: get_agent_usage" -ForegroundColor Yellow
+# Test 10: MCP Protocol - Call Tool: get_local_agent_usage
+Write-Host "Test 10: MCP Protocol - Call Tool: get_local_agent_usage" -ForegroundColor Yellow
 $mcpUsageRequest = @{
     jsonrpc = "2.0"
     id = 4
     method = "tools/call"
     params = @{
-        name = "get_agent_usage"
+        name = "get_local_agent_usage"
         arguments = @{
-            agent = "retriever"
+            agent_id = "retriever"
         }
     }
 } | ConvertTo-Json -Depth 10
@@ -322,14 +334,14 @@ try {
         -ContentType "application/json" `
         -Body $mcpUsageRequest
     
-    Write-Host "MCP get_agent_usage tool called successfully!" -ForegroundColor Green
+    Write-Host "MCP get_local_agent_usage tool called successfully!" -ForegroundColor Green
     $resultText = $response.result.content[0].text
     $resultObj = $resultText | ConvertFrom-Json
     Write-Host "  Total Runs: $($resultObj.total_runs)" -ForegroundColor White
     Write-Host "  Failures: $($resultObj.failures)" -ForegroundColor White
     Write-Host ""
 } catch {
-    Write-Host "Failed to call MCP get_agent_usage tool: $_" -ForegroundColor Red
+    Write-Host "Failed to call MCP get_local_agent_usage tool: $_" -ForegroundColor Red
     if ($_.ErrorDetails.Message) {
         Write-Host "Error details: $($_.ErrorDetails.Message)" -ForegroundColor Red
     }
@@ -412,8 +424,45 @@ try {
 
 Write-Host ""
 
-# Test 13: MCP Reasoning Engine - List Agents (Optional - requires GCP setup)
-Write-Host "Test 13: MCP Reasoning Engine - List Agents (Optional)" -ForegroundColor Yellow
+# Test 12: MCP Protocol - Call Tool: list_deployed_agents (Optional - requires GCP setup)
+Write-Host "Test 12: MCP Protocol - Call Tool: list_deployed_agents (Optional)" -ForegroundColor Yellow
+if ($GCP_PROJECT_ID) {
+    $mcpListDeployedRequest = @{
+        jsonrpc = "2.0"
+        id = 6
+        method = "tools/call"
+        params = @{
+            name = "list_deployed_agents"
+            arguments = @{}
+        }
+    } | ConvertTo-Json -Depth 10
+
+    try {
+        $response = Invoke-RestMethod -Uri "$SERVER_URL/" `
+            -Method POST `
+            -ContentType "application/json" `
+            -Body $mcpListDeployedRequest
+        
+        Write-Host "MCP list_deployed_agents tool called successfully!" -ForegroundColor Green
+        $resultText = $response.result.content[0].text
+        $resultObj = $resultText | ConvertFrom-Json
+        Write-Host "  Deployed agents found: $($resultObj.agents.Count)" -ForegroundColor White
+        Write-Host ""
+    } catch {
+        Write-Host "Failed to call MCP list_deployed_agents tool: $_" -ForegroundColor Red
+        if ($_.ErrorDetails.Message) {
+            Write-Host "Error details: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        }
+    }
+} else {
+    Write-Host "  Test skipped - GCP_PROJECT_ID not configured" -ForegroundColor Gray
+    Write-Host ""
+}
+
+Write-Host ""
+
+# Test 13: List Deployed Agents (Optional - requires GCP setup)
+Write-Host "Test 13: List Deployed Agents (Optional)" -ForegroundColor Yellow
 if ($GCP_PROJECT_ID) {
     Write-Host "  Using GCP Project ID: $GCP_PROJECT_ID" -ForegroundColor Gray
     if ($GCP_PROJECT_NUMBER) {
@@ -434,9 +483,9 @@ if ($GCP_PROJECT_ID) {
 
 if ($GCP_PROJECT_ID) {
     try {
-        $response = Invoke-RestMethod -Uri "$SERVER_URL/mcp-reas-engine/agents" -Method GET
+        $response = Invoke-RestMethod -Uri "$SERVER_URL/deployed/agents" -Method GET
         
-        Write-Host "MCP Reasoning Engine agents listed successfully!" -ForegroundColor Green
+        Write-Host "Deployed agents listed successfully!" -ForegroundColor Green
         Write-Host "  Total agents: $($response.agents.Count)" -ForegroundColor White
         if ($response.agents.Count -gt 0) {
             Write-Host ""
@@ -448,21 +497,61 @@ if ($GCP_PROJECT_ID) {
                 Write-Host ""
             }
         } else {
-            Write-Host "  No agents found in GCP project" -ForegroundColor Gray
+            Write-Host "  No deployed agents found in GCP project" -ForegroundColor Gray
         }
     } catch {
-        Write-Host "MCP Reasoning Engine not available" -ForegroundColor Yellow
+        Write-Host "Deployed agents endpoint not available" -ForegroundColor Yellow
+        
+        # Try to get detailed error message from response
+        $errorDetail = ""
+        try {
+            if ($_.Exception.Response) {
+                $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $reader.BaseStream.Position = 0
+                $reader.DiscardBufferedData()
+                $responseBody = $reader.ReadToEnd()
+                try {
+                    $errorObj = $responseBody | ConvertFrom-Json
+                    if ($errorObj.detail) {
+                        $errorDetail = $errorObj.detail
+                    } elseif ($errorObj.message) {
+                        $errorDetail = $errorObj.message
+                    } elseif ($errorObj.error) {
+                        $errorDetail = $errorObj.error
+                    }
+                } catch {
+                    $errorDetail = $responseBody
+                }
+            }
+        } catch {
+            # If we can't read the response, use the exception message
+            $errorDetail = $_.Exception.Message
+        }
+        
         if ($_.Exception.Response.StatusCode -eq 503) {
             Write-Host "  Google Cloud libraries not installed" -ForegroundColor Gray
             Write-Host "  Install with: pip install google-cloud-aiplatform google-cloud-monitoring" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            }
         } elseif ($_.Exception.Response.StatusCode -eq 400) {
             Write-Host "  GCP_PROJECT_ID not properly configured" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            }
         } elseif ($_.Exception.Response.StatusCode -eq 401 -or $_.Exception.Response.StatusCode -eq 403) {
             Write-Host "  Google Cloud authentication failed" -ForegroundColor Gray
-            Write-Host "  Ensure you have valid GCP credentials configured" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            } else {
+                Write-Host "  Ensure you have valid GCP credentials configured" -ForegroundColor Gray
+                Write-Host "  Check GOOGLE_APPLICATION_CREDENTIALS environment variable" -ForegroundColor Gray
+            }
         } else {
             Write-Host "  Error: $_" -ForegroundColor Gray
-            if ($_.ErrorDetails.Message) {
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            } elseif ($_.ErrorDetails.Message) {
                 Write-Host "  Details: $($_.ErrorDetails.Message)" -ForegroundColor Gray
             }
         }
@@ -475,42 +564,115 @@ if ($GCP_PROJECT_ID) {
 
 Write-Host ""
 
-# Test 14: MCP Reasoning Engine - Get All (Optional - requires GCP setup)
-Write-Host "Test 14: MCP Reasoning Engine - Get All (Optional)" -ForegroundColor Yellow
+# Test 14: Get Deployed Agent Usage (Optional - requires GCP setup)
+Write-Host "Test 14: Get Deployed Agent Usage (Optional)" -ForegroundColor Yellow
 if ($GCP_PROJECT_ID) {
     Write-Host "  Using GCP Project ID: $GCP_PROJECT_ID" -ForegroundColor Gray
     Write-Host "  Note: This test requires Google Cloud credentials to be configured" -ForegroundColor Gray
     
+    # First get the list of deployed agents
     try {
-        $response = Invoke-RestMethod -Uri "$SERVER_URL/mcp-reas-engine/all" -Method GET
+        $agentsResponse = Invoke-RestMethod -Uri "$SERVER_URL/deployed/agents" -Method GET
         
-        Write-Host "MCP Reasoning Engine all data retrieved successfully!" -ForegroundColor Green
-        Write-Host "  Total agents: $($response.agents.Count)" -ForegroundColor White
-        if ($response.agents.Count -gt 0) {
-            Write-Host ""
-            Write-Host "Agents with Usage Metrics:" -ForegroundColor Cyan
-            $response.agents | ForEach-Object {
-                Write-Host "  - $($_.display_name) ($($_.id))" -ForegroundColor White
-                if ($_.usage) {
-                    if ($_.usage.error) {
-                        Write-Host "    Usage: Error - $($_.usage.error)" -ForegroundColor Red
-                    } else {
-                        Write-Host "    Usage: $($_.usage.requests_last_hour) requests in last hour" -ForegroundColor Gray
+        if ($agentsResponse.agents.Count -gt 0) {
+            # Get usage for the first deployed agent
+            $firstAgent = $agentsResponse.agents[0]
+            $agentId = $firstAgent.agent_id
+            if (-not $agentId) {
+                # Extract agent ID from full resource name
+                $agentId = $firstAgent.id.Split("/")[-1]
+            }
+            
+            Write-Host "  Testing usage for agent: $agentId" -ForegroundColor Gray
+            
+            try {
+                $usageResponse = Invoke-RestMethod -Uri "$SERVER_URL/deployed/agents/$agentId/usage" -Method GET
+                
+                Write-Host "Deployed agent usage retrieved successfully!" -ForegroundColor Green
+                Write-Host "  Agent: $($firstAgent.display_name) ($agentId)" -ForegroundColor White
+                if ($usageResponse.error) {
+                    Write-Host "    Usage: Error" -ForegroundColor Red
+                    Write-Host "      Error Type: $($usageResponse.error_type)" -ForegroundColor Yellow
+                    Write-Host "      Error Details: $($usageResponse.error)" -ForegroundColor Yellow
+                    if ($usageResponse.warning) {
+                        Write-Host "      Warning: $($usageResponse.warning)" -ForegroundColor Yellow
                     }
+                    if ($usageResponse.note) {
+                        Write-Host "      Note: $($usageResponse.note)" -ForegroundColor Gray
+                    }
+                } elseif ($usageResponse.warning) {
+                    Write-Host "    Usage: $($usageResponse.requests_last_hour) requests in last hour" -ForegroundColor Gray
+                    Write-Host "      Warning: $($usageResponse.warning)" -ForegroundColor Yellow
+                    if ($usageResponse.note) {
+                        Write-Host "      Note: $($usageResponse.note)" -ForegroundColor Gray
+                    }
+                } elseif ($usageResponse.info) {
+                    Write-Host "    Usage: $($usageResponse.requests_last_hour) requests in last hour" -ForegroundColor Gray
+                    Write-Host "      Info: $($usageResponse.info)" -ForegroundColor Cyan
+                } else {
+                    Write-Host "    Usage: $($usageResponse.requests_last_hour) requests in last hour" -ForegroundColor Gray
+                }
+            } catch {
+                Write-Host "Failed to get deployed agent usage: $_" -ForegroundColor Red
+                if ($_.ErrorDetails.Message) {
+                    Write-Host "  Error details: $($_.ErrorDetails.Message)" -ForegroundColor Red
                 }
             }
+        } else {
+            Write-Host "  No deployed agents found to test usage" -ForegroundColor Gray
         }
         Write-Host ""
     } catch {
-        Write-Host "MCP Reasoning Engine not available" -ForegroundColor Yellow
+        Write-Host "Deployed agents endpoint not available" -ForegroundColor Yellow
+        
+        # Try to get detailed error message from response
+        $errorDetail = ""
+        try {
+            if ($_.Exception.Response) {
+                $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $reader.BaseStream.Position = 0
+                $reader.DiscardBufferedData()
+                $responseBody = $reader.ReadToEnd()
+                try {
+                    $errorObj = $responseBody | ConvertFrom-Json
+                    if ($errorObj.detail) {
+                        $errorDetail = $errorObj.detail
+                    } elseif ($errorObj.message) {
+                        $errorDetail = $errorObj.message
+                    } elseif ($errorObj.error) {
+                        $errorDetail = $errorObj.error
+                    }
+                } catch {
+                    $errorDetail = $responseBody
+                }
+            }
+        } catch {
+            # If we can't read the response, use the exception message
+            $errorDetail = $_.Exception.Message
+        }
+        
         if ($_.Exception.Response.StatusCode -eq 503) {
             Write-Host "  Google Cloud libraries not installed" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            }
         } elseif ($_.Exception.Response.StatusCode -eq 400) {
             Write-Host "  GCP_PROJECT_ID not properly configured" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            }
         } elseif ($_.Exception.Response.StatusCode -eq 401 -or $_.Exception.Response.StatusCode -eq 403) {
             Write-Host "  Google Cloud authentication failed" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            } else {
+                Write-Host "  Check GOOGLE_APPLICATION_CREDENTIALS environment variable" -ForegroundColor Gray
+            }
         } else {
             Write-Host "  Error: $_" -ForegroundColor Gray
+            if ($errorDetail) {
+                Write-Host "  Details: $errorDetail" -ForegroundColor Gray
+            }
         }
         Write-Host ""
     }
@@ -525,12 +687,11 @@ Write-Host "All tests completed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Summary:" -ForegroundColor Cyan
 Write-Host "  - REST API endpoints: Tested" -ForegroundColor White
+Write-Host "  - Local agents endpoints: Tested" -ForegroundColor White
+Write-Host "  - Deployed agents endpoints: $(if ($GCP_PROJECT_ID) { 'Tested (GCP configured)' } else { 'Skipped (GCP not configured)' })" -ForegroundColor $(if ($GCP_PROJECT_ID) { 'White' } else { 'Yellow' })
 Write-Host "  - MCP Protocol endpoints: Tested" -ForegroundColor White
 if ($GCP_PROJECT_ID) {
-    Write-Host "  - MCP Reasoning Engine endpoints: Tested (GCP configured)" -ForegroundColor White
-} else {
-    Write-Host "  - MCP Reasoning Engine endpoints: Skipped (GCP not configured)" -ForegroundColor Yellow
-    Write-Host "    Add GCP_PROJECT_ID to .env file to enable these tests" -ForegroundColor Gray
+    Write-Host "    Add GCP_PROJECT_ID to .env file to enable deployed agents tests" -ForegroundColor Gray
 }
 Write-Host ""
 Write-Host "Configuration:" -ForegroundColor Cyan

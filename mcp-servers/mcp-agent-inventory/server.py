@@ -240,13 +240,13 @@ async def register_agent(metadata: AgentMetadata) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Error registering agent: {str(e)}")
 
 
-@app.get("/list_agents", response_model=ListAgentsResponse)
-async def list_agents() -> ListAgentsResponse:
+@app.get("/local/agents", response_model=ListAgentsResponse)
+async def list_local_agents() -> ListAgentsResponse:
     """
-    List all agents in the inventory with their metadata
+    List all local agents in the inventory with their metadata
     
     Returns:
-        ListAgentsResponse: List of all agents with metadata
+        ListAgentsResponse: List of all local agents with metadata
     """
     try:
         agents_list = []
@@ -268,13 +268,40 @@ async def list_agents() -> ListAgentsResponse:
         
         return ListAgentsResponse(agents=agents_list)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing agents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listing local agents: {str(e)}")
+
+
+@app.get("/list_agents", response_model=ListAgentsResponse)
+async def list_agents() -> ListAgentsResponse:
+    """
+    [DEPRECATED] List all agents in the inventory with their metadata
+    Use /local/agents instead.
+    
+    Returns:
+        ListAgentsResponse: List of all agents with metadata
+    """
+    return await list_local_agents()
+
+
+@app.get("/local/agents/{agent_id}/usage", response_model=AgentUsageResponse)
+async def get_local_agent_usage(agent_id: str) -> AgentUsageResponse:
+    """
+    Get detailed usage statistics for a specific local agent
+    
+    Args:
+        agent_id: The ID of the local agent
+        
+    Returns:
+        AgentUsageResponse: Detailed usage statistics
+    """
+    return await get_agent_usage_internal(agent_id)
 
 
 @app.get("/usage", response_model=AgentUsageResponse)
 async def get_agent_usage(agent: str = Query(..., description="Agent ID to get usage for")) -> AgentUsageResponse:
     """
-    Get detailed usage statistics for a specific agent
+    [DEPRECATED] Get detailed usage statistics for a specific agent
+    Use /local/agents/{agent_id}/usage instead.
     
     Args:
         agent: The ID of the agent (query parameter)
@@ -282,8 +309,20 @@ async def get_agent_usage(agent: str = Query(..., description="Agent ID to get u
     Returns:
         AgentUsageResponse: Detailed usage statistics
     """
+    return await get_agent_usage_internal(agent)
+
+
+async def get_agent_usage_internal(agent_id: str) -> AgentUsageResponse:
+    """
+    Internal function to get detailed usage statistics for a specific local agent
+    
+    Args:
+        agent_id: The ID of the agent
+        
+    Returns:
+        AgentUsageResponse: Detailed usage statistics
+    """
     try:
-        agent_id = agent
         
         if agent_id not in agent_metadata:
             raise HTTPException(
@@ -371,10 +410,32 @@ async def delete_agent(agent_id: str) -> Dict[str, Any]:
 # Google Cloud Monitoring APIs
 # -----------------------------
 
+@app.get("/deployed/agents")
+async def list_deployed_agents():
+    """
+    List deployed agents from Google Cloud Vertex AI Reasoning Engine
+    
+    Returns:
+        dict: List of deployed agents with their metadata from GCP
+    """
+    return await list_gcp_agents_internal()
+
+
 @app.get("/mcp-reas-engine/agents")
 async def list_gcp_agents():
     """
-    List deployed agents from Google Cloud Vertex AI Reasoning Engine
+    [DEPRECATED] List deployed agents from Google Cloud Vertex AI Reasoning Engine
+    Use /deployed/agents instead.
+    
+    Returns:
+        dict: List of agents with their metadata from GCP
+    """
+    return await list_gcp_agents_internal()
+
+
+async def list_gcp_agents_internal():
+    """
+    Internal function to list deployed agents from Google Cloud Vertex AI Reasoning Engine
     
     Returns:
         dict: List of agents with their metadata from GCP
@@ -396,6 +457,10 @@ async def list_gcp_agents():
         import requests
         from google.auth import default
         from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+        
+        # Define required OAuth scopes for Vertex AI APIs
+        SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
         
         # Get project number if not set
         project_number = PROJECT_NUMBER
@@ -407,9 +472,18 @@ async def list_gcp_agents():
                     resource_manager_url = f"https://cloudresourcemanager.googleapis.com/v1/projects/{PROJECT_ID}?key={GCP_API_KEY}"
                     proj_response = requests.get(resource_manager_url, timeout=10)
                 else:
-                    # Use OAuth
-                    credentials, _ = default()
-                    credentials.refresh(Request())
+                    # Use OAuth with explicit scopes
+                    credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+                    if credentials_file and os.path.exists(credentials_file):
+                        credentials = service_account.Credentials.from_service_account_file(
+                            credentials_file,
+                            scopes=SCOPES
+                        )
+                        credentials.refresh(Request())
+                    else:
+                        credentials, _ = default(scopes=SCOPES)
+                        credentials.refresh(Request())
+                    
                     access_token = credentials.token
                     resource_manager_url = f"https://cloudresourcemanager.googleapis.com/v1/projects/{PROJECT_ID}"
                     headers = {
@@ -439,16 +513,33 @@ async def list_gcp_agents():
             "Content-Type": "application/json"
         }
         
-        # Use OAuth2 token (required by Reasoning Engine API)
+        # Use OAuth2 token with explicit scopes (required by Reasoning Engine API)
         try:
-            credentials, _ = default()
-            credentials.refresh(Request())
+            # Get credentials with explicit scopes for Vertex AI
+            # If GOOGLE_APPLICATION_CREDENTIALS is set, use service account directly
+            credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if credentials_file and os.path.exists(credentials_file):
+                # Use service account credentials with explicit scopes
+                credentials = service_account.Credentials.from_service_account_file(
+                    credentials_file,
+                    scopes=SCOPES
+                )
+                credentials.refresh(Request())
+            else:
+                # Use default credentials (ADC) with explicit scopes
+                credentials, _ = default(scopes=SCOPES)
+                credentials.refresh(Request())
+            
             access_token = credentials.token
             headers["Authorization"] = f"Bearer {access_token}"
         except Exception as auth_error:
+            error_detail = str(auth_error)
+            # Provide more helpful error messages
+            if "invalid_scope" in error_detail.lower():
+                error_detail = f"OAuth scope error: {error_detail}. Make sure your service account has the required permissions (roles/aiplatform.user or roles/aiplatform.admin)."
             raise HTTPException(
                 status_code=401,
-                detail=f"Authentication failed: {str(auth_error)}. Configure GOOGLE_APPLICATION_CREDENTIALS or run 'gcloud auth application-default login'."
+                detail=f"Authentication failed: {error_detail}. Configure GOOGLE_APPLICATION_CREDENTIALS with a valid service account JSON file."
             )
         
         result = []
@@ -529,13 +620,41 @@ async def list_gcp_agents():
         raise HTTPException(status_code=500, detail=f"Error listing GCP agents: {error_msg}")
 
 
+@app.get("/deployed/agents/{agent_id}/usage")
+async def get_deployed_agent_usage(agent_id: str):
+    """
+    Get usage metrics from Google Cloud Monitoring for a specific deployed agent
+    
+    Args:
+        agent_id: The ID of the deployed agent in GCP (can be full resource name or just the ID)
+        
+    Returns:
+        dict: Usage metrics from Cloud Monitoring
+    """
+    return await get_gcp_agent_usage_internal(agent_id)
+
+
 @app.get("/mcp-reas-engine/usage")
 async def get_gcp_agent_usage(agent_id: str = Query(..., description="GCP Agent ID to get usage for")):
+    """
+    [DEPRECATED] Get usage metrics from Google Cloud Monitoring for a specific agent
+    Use /deployed/agents/{agent_id}/usage instead.
+    
+    Args:
+        agent_id: The ID of the agent in GCP (can be full resource name or just the ID)
+        
+    Returns:
+        dict: Usage metrics from Cloud Monitoring
+    """
+    return await get_gcp_agent_usage_internal(agent_id)
+
+
+async def get_gcp_agent_usage_internal(agent_id: str):
     """
     Get usage metrics from Google Cloud Monitoring for a specific agent
     
     Args:
-        agent_id: The ID of the agent in GCP
+        agent_id: The ID of the agent in GCP (can be full resource name or just the ID)
         
     Returns:
         dict: Usage metrics from Cloud Monitoring
@@ -553,42 +672,128 @@ async def get_gcp_agent_usage(agent_id: str = Query(..., description="GCP Agent 
         )
     
     try:
-        client = monitoring_v3.MetricServiceClient()
+        # Extract just the agent ID from full resource name if provided
+        # Format: projects/.../locations/.../reasoningEngines/AGENT_ID
+        if "/reasoningEngines/" in agent_id:
+            agent_id = agent_id.split("/reasoningEngines/")[-1]
+        elif "/" in agent_id:
+            # If it's just the last part after a slash
+            agent_id = agent_id.split("/")[-1]
+        
+        # Initialize client with proper authentication scopes
+        from google.auth import default
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+        
+        SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
+        credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if credentials_file and os.path.exists(credentials_file):
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_file,
+                scopes=SCOPES
+            )
+            credentials.refresh(Request())
+        else:
+            credentials, _ = default(scopes=SCOPES)
+            credentials.refresh(Request())
+        
+        client = monitoring_v3.MetricServiceClient(credentials=credentials)
         
         interval = monitoring_v3.TimeInterval(
             end_time=datetime.utcnow(),
             start_time=datetime.utcnow() - timedelta(hours=1),
         )
         
-        # Example metric: request count
+        # Use the standard Vertex AI Reasoning Engine metric
+        metric_type = 'aiplatform.googleapis.com/reasoning_engine/request_count'
+        
+        # Build the filter - need to use reasoning_engine_id resource label
+        # The agent_id from the API is the numeric ID (e.g., 328353754472513536)
         request_metric = (
-            'metric.type="custom.googleapis.com/vertex/agentengine/request_count" '
-            f'resource.labels.agent_id="{agent_id}"'
+            f'metric.type="{metric_type}" '
+            f'resource.labels.reasoning_engine_id="{agent_id}"'
         )
         
-        series = client.list_time_series(
-            request={
-                "name": f"projects/{PROJECT_ID}",
-                "filter": request_metric,
-                "interval": interval,
-                "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+        try:
+            series = client.list_time_series(
+                request={
+                    "name": f"projects/{PROJECT_ID}",
+                    "filter": request_metric,
+                    "interval": interval,
+                    "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+                }
+            )
+            
+            # Collect data points
+            datapoints = []
+            for ts in series:
+                for pt in ts.points:
+                    if hasattr(pt.value, 'int64_value'):
+                        datapoints.append(pt.value.int64_value)
+                    elif hasattr(pt.value, 'double_value'):
+                        datapoints.append(int(pt.value.double_value))
+            
+            # If we got no data points, return info message
+            if not datapoints:
+                return {
+                    "agent_id": agent_id,
+                    "requests_last_hour": 0,
+                    "info": "No usage data available for the last hour",
+                    "note": f"Using metric: {metric_type}"
+                }
+            
+            return {
+                "agent_id": agent_id,
+                "requests_last_hour": sum(datapoints) if datapoints else 0,
+                "metric_type": metric_type,
             }
-        )
+            
+        except Exception as metric_error:
+            error_str = str(metric_error)
+            last_error = f"Metric {metric_type}: {error_str}"
+            
+            # Return usage data with error info
+            return {
+                "agent_id": agent_id,
+                "requests_last_hour": 0,
+                "warning": "No metrics found",
+                "error": last_error,
+                "error_type": type(metric_error).__name__,
+                "note": f"Using metric: {metric_type}. Metrics may not be enabled or available yet for this agent."
+            }
         
-        datapoints = []
-        for ts in series:
-            for pt in ts.points:
-                if hasattr(pt.value, 'int64_value'):
-                    datapoints.append(pt.value.int64_value)
-                elif hasattr(pt.value, 'double_value'):
-                    datapoints.append(int(pt.value.double_value))
-        
-        return {
-            "agent_id": agent_id,
-            "requests_last_hour": sum(datapoints) if datapoints else 0,
-        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting GCP agent usage: {str(e)}")
+        error_type = type(e).__name__
+        error_msg = str(e)
+        
+        # Check if it's a permission error
+        if "permission" in error_msg.lower() or "403" in error_msg or "forbidden" in error_msg.lower():
+            error_detail = error_msg
+            if hasattr(e, 'message'):
+                error_detail = e.message
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied accessing Cloud Monitoring: {error_detail}. Ensure the service account has 'roles/monitoring.viewer' or 'roles/monitoring.metricReader' permissions."
+            )
+        
+        # Extract more detailed error information
+        if hasattr(e, 'code'):
+            error_code = e.code
+            error_msg = f"[{error_code}] {error_msg}"
+        
+        if hasattr(e, 'details'):
+            error_details = str(e.details)
+            if error_details:
+                error_msg = f"{error_msg} - Details: {error_details}"
+        
+        # Extract gRPC error details if available
+        if hasattr(e, 'grpc_status_code'):
+            error_msg = f"gRPC {e.grpc_status_code}: {error_msg}"
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting GCP agent usage for '{agent_id}': {error_type} - {error_msg}"
+        )
 
 
 @app.get("/mcp-reas-engine/all")
@@ -606,7 +811,7 @@ async def get_gcp_all():
         )
     
     try:
-        agents_response = await list_gcp_agents()
+        agents_response = await list_gcp_agents_internal()
         agents = agents_response["agents"]
         
         for a in agents:
@@ -614,12 +819,32 @@ async def get_gcp_all():
                 # Extract agent ID from the full resource name
                 # Try agent_id field first, then id field
                 agent_id = a.get("agent_id") or (a["id"].split("/")[-1] if "/" in a["id"] else a["id"])
-                usage = await get_gcp_agent_usage(agent_id=agent_id)
+                usage = await get_gcp_agent_usage_internal(agent_id=agent_id)
                 a["usage"] = usage
+            except HTTPException as http_err:
+                # If usage fetch fails with HTTPException, include detailed error
+                error_detail = http_err.detail if hasattr(http_err, 'detail') else str(http_err)
+                a["usage"] = {
+                    "requests_last_hour": 0,
+                    "error": error_detail,
+                    "error_type": "HTTPException"
+                }
             except Exception as e:
                 # If usage fetch fails, continue without usage data
-                error_str = str(e) or type(e).__name__ or "Unknown error"
-                a["usage"] = {"requests_last_hour": 0, "error": error_str}
+                error_type = type(e).__name__
+                error_str = str(e) or error_type or "Unknown error"
+                
+                # Try to extract more details
+                if hasattr(e, 'message'):
+                    error_str = f"{error_str} - {e.message}"
+                if hasattr(e, 'details'):
+                    error_str = f"{error_str} - Details: {e.details}"
+                
+                a["usage"] = {
+                    "requests_last_hour": 0,
+                    "error": error_str,
+                    "error_type": error_type
+                }
         
         return {"agents": agents}
     except HTTPException:
@@ -638,14 +863,19 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
-            "list_agents": "GET /list_agents",
-            "usage": "GET /usage?agent={agent_id}",
+            "local_agents": "GET /local/agents",
+            "local_usage": "GET /local/agents/{agent_id}/usage",
+            "deployed_agents": "GET /deployed/agents",
+            "deployed_usage": "GET /deployed/agents/{agent_id}/usage",
             "record_execution": "POST /record_execution",
             "register_agent": "POST /register_agent",
             "delete_agent": "DELETE /agent/{agent_id}",
-            "mcp_reas_engine_agents": "GET /mcp-reas-engine/agents",
-            "mcp_reas_engine_usage": "GET /mcp-reas-engine/usage?agent_id={agent_id}",
-            "mcp_reas_engine_all": "GET /mcp-reas-engine/all",
+            # Deprecated endpoints (kept for backward compatibility)
+            "list_agents": "GET /list_agents [DEPRECATED - use /local/agents]",
+            "usage": "GET /usage?agent={agent_id} [DEPRECATED - use /local/agents/{agent_id}/usage]",
+            "mcp_reas_engine_agents": "GET /mcp-reas-engine/agents [DEPRECATED - use /deployed/agents]",
+            "mcp_reas_engine_usage": "GET /mcp-reas-engine/usage?agent_id={agent_id} [DEPRECATED]",
+            "mcp_reas_engine_all": "GET /mcp-reas-engine/all [DEPRECATED]",
         },
         "gcp_available": GOOGLE_CLOUD_AVAILABLE,
         "gcp_project_id": PROJECT_ID if PROJECT_ID else None,
@@ -696,25 +926,25 @@ async def mcp_endpoint(request: Request):
                 "result": {
                     "tools": [
                         {
-                            "name": "list_agents",
-                            "description": "List all agents in the inventory with their metadata",
+                            "name": "list_local_agents",
+                            "description": "List all local agents in the inventory with their metadata",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {}
                             }
                         },
                         {
-                            "name": "get_agent_usage",
-                            "description": "Get detailed usage statistics for a specific agent",
+                            "name": "get_local_agent_usage",
+                            "description": "Get detailed usage statistics for a specific local agent",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
-                                    "agent": {
+                                    "agent_id": {
                                         "type": "string",
-                                        "description": "The ID of the agent"
+                                        "description": "The ID of the local agent"
                                     }
                                 },
-                                "required": ["agent"]
+                                "required": ["agent_id"]
                             }
                         },
                         {
@@ -763,7 +993,7 @@ async def mcp_endpoint(request: Request):
                             }
                         },
                         {
-                            "name": "list_gcp_agents",
+                            "name": "list_deployed_agents",
                             "description": "List deployed agents from Google Cloud Vertex AI Reasoning Engine",
                             "inputSchema": {
                                 "type": "object",
@@ -771,25 +1001,17 @@ async def mcp_endpoint(request: Request):
                             }
                         },
                         {
-                            "name": "get_gcp_agent_usage",
-                            "description": "Get usage metrics from Google Cloud Monitoring for a specific agent",
+                            "name": "get_deployed_agent_usage",
+                            "description": "Get usage metrics from Google Cloud Monitoring for a specific deployed agent",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
                                     "agent_id": {
                                         "type": "string",
-                                        "description": "The ID of the agent in GCP"
+                                        "description": "The ID of the deployed agent in GCP (can be full resource name or just the ID)"
                                     }
                                 },
                                 "required": ["agent_id"]
-                            }
-                        },
-                        {
-                            "name": "get_gcp_all",
-                            "description": "Get all GCP agents with their usage metrics merged",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {}
                             }
                         }
                     ]
@@ -810,7 +1032,21 @@ async def mcp_endpoint(request: Request):
                     return json.dumps(result, indent=2, default=str)
             
             # Route to appropriate handler
-            if tool_name == "list_agents":
+            if tool_name == "list_local_agents":
+                result = await list_local_agents()
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "list_agents":  # Deprecated - backward compatibility
                 result = await list_agents()
                 response = {
                     "jsonrpc": jsonrpc,
@@ -824,7 +1060,24 @@ async def mcp_endpoint(request: Request):
                         ]
                     }
                 }
-            elif tool_name == "get_agent_usage":
+            elif tool_name == "get_local_agent_usage":
+                agent_id = tool_args.get("agent_id")
+                if not agent_id:
+                    raise HTTPException(status_code=400, detail="agent_id parameter is required")
+                result = await get_local_agent_usage(agent_id=agent_id)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "get_agent_usage":  # Deprecated - backward compatibility
                 agent_id = tool_args.get("agent")
                 if not agent_id:
                     raise HTTPException(status_code=400, detail="agent parameter is required")
@@ -888,7 +1141,38 @@ async def mcp_endpoint(request: Request):
                         ]
                     }
                 }
-            elif tool_name == "list_gcp_agents":
+            elif tool_name == "list_deployed_agents":
+                result = await list_deployed_agents()
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "get_deployed_agent_usage":
+                agent_id = tool_args.get("agent_id")
+                if not agent_id:
+                    raise HTTPException(status_code=400, detail="agent_id parameter is required")
+                result = await get_deployed_agent_usage(agent_id=agent_id)
+                response = {
+                    "jsonrpc": jsonrpc,
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": serialize_result(result)
+                            }
+                        ]
+                    }
+                }
+            elif tool_name == "list_gcp_agents":  # Deprecated - backward compatibility
                 result = await list_gcp_agents()
                 response = {
                     "jsonrpc": jsonrpc,
@@ -902,7 +1186,7 @@ async def mcp_endpoint(request: Request):
                         ]
                     }
                 }
-            elif tool_name == "get_gcp_agent_usage":
+            elif tool_name == "get_gcp_agent_usage":  # Deprecated - backward compatibility
                 agent_id = tool_args.get("agent_id")
                 if not agent_id:
                     raise HTTPException(status_code=400, detail="agent_id parameter is required")
@@ -919,7 +1203,7 @@ async def mcp_endpoint(request: Request):
                         ]
                     }
                 }
-            elif tool_name == "get_gcp_all":
+            elif tool_name == "get_gcp_all":  # Deprecated - backward compatibility
                 result = await get_gcp_all()
                 response = {
                     "jsonrpc": jsonrpc,

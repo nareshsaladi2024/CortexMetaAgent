@@ -49,10 +49,56 @@ if ($python -and -not (Test-Path $python)) {
     exit 1
 }
 
+# Load environment variables from .env file if it exists
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+    Write-Host "Loading environment variables from .env file..." -ForegroundColor Gray
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]*)\s*=\s*(.*)\s*$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            # Remove quotes if present
+            if ($value -match '^["''](.*)["'']$') {
+                $value = $matches[1]
+            }
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+        }
+    }
+    Write-Host "Environment variables loaded from .env" -ForegroundColor Gray
+    Write-Host ""
+}
+
 Write-Host "🚀 Starting TokenStats MCP Server..." -ForegroundColor Green
 Write-Host "   Python: $python" -ForegroundColor Cyan
 Write-Host "   Directory: $PSScriptRoot" -ForegroundColor Cyan
 Write-Host ""
+
+# Check for port configuration
+if (-not $env:PORT) {
+    $env:PORT = 8000
+    Write-Host "Using default port: 8000" -ForegroundColor Cyan
+    Write-Host "Set `$env:PORT to use a different port" -ForegroundColor Gray
+    Write-Host ""
+} else {
+    Write-Host "Using port from environment: $env:PORT" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# Check if port is already in use
+$port = [int]$env:PORT
+try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $port)
+    $listener.Start()
+    $listener.Stop()
+    Write-Host "Port $port is available" -ForegroundColor Green
+    Write-Host ""
+} catch {
+    Write-Host "⚠️  WARNING: Port $port is already in use!" -ForegroundColor Yellow
+    Write-Host "   Please stop the server using port $port or set a different port:" -ForegroundColor Yellow
+    Write-Host "   `$env:PORT = 8003  # or another available port" -ForegroundColor Cyan
+    Write-Host ""
+    exit 1
+}
 
 # Check for API key
 if (-not $env:GOOGLE_API_KEY) {
@@ -62,7 +108,7 @@ if (-not $env:GOOGLE_API_KEY) {
 }
 
 # Run the server
-Write-Host "Starting server on http://localhost:8000" -ForegroundColor Cyan
+Write-Host "Starting server on http://localhost:$env:PORT" -ForegroundColor Cyan
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
 

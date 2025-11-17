@@ -14,8 +14,9 @@ from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Add parent directory to path to import utilities
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add parent directory to path to import utilities and config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL, MCP_TOKENSTATS_URL
 
 # Load environment variables
 load_dotenv()
@@ -26,9 +27,7 @@ vertexai.init(
     location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
 )
 
-# MCP Server URLs
-MCP_AGENT_INVENTORY_URL = os.environ.get("MCP_AGENT_INVENTORY_URL", "http://localhost:8001")
-MCP_TOKENSTATS_URL = os.environ.get("MCP_TOKENSTATS_URL", "http://localhost:8000")
+# MCP Server URLs from config (already imported above)
 
 
 def list_agents_from_inventory(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
@@ -78,7 +77,7 @@ def check_token_limit(prompt: str, max_tokens: int = 4096, mcp_server_url: Optio
         dict: Token count and whether it exceeds limit
     """
     if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_TOKENSTATS_URL", "http://localhost:8000")
+        mcp_server_url = MCP_TOKENSTATS_URL
     
     try:
         response = requests.post(
@@ -397,7 +396,7 @@ def run_regression_test(agent_id: str, eval_suite_dir: Optional[str] = None, met
 # Create the AutoEval Agent using Google ADK
 auto_eval_agent = Agent(
     name="auto_eval_agent",
-    model="gemini-2.5-flash-lite",
+    model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI agent that automatically generates evaluation suites for agents and runs regression tests when agent code or configuration changes.",
     instruction="""
     You are an AutoEvalAgent that manages evaluation suites for AI agents.

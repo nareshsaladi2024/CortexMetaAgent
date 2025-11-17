@@ -10,8 +10,9 @@ import sys
 from typing import Dict, Any, List, Optional
 import requests
 
-# Add parent directory to import agent
-sys.path.insert(0, os.path.dirname(__file__))
+# Add parent directory to import agent and config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from config import AGENT_MODEL, MCP_TOKENSTATS_URL
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -27,14 +28,11 @@ vertexai.init(
     location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
 )
 
-# MCP Server URLs
-MCP_TOKENSTATS_URL = os.environ.get("MCP_TOKENSTATS_URL", "http://localhost:8000")
-
 
 # Create LLM agent for generating eval sets dynamically
 eval_generator_agent = Agent(
     name="eval_generator",
-    model="gemini-2.5-flash-lite",
+    model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="Generates evaluation test cases dynamically based on agent capabilities and success scenarios",
     instruction="""
     You are an evaluation test case generator that creates diverse test cases for AI agents.

@@ -21,8 +21,9 @@ import yaml
 from pathlib import Path
 from datetime import datetime
 
-# Add parent directory to path to import agents
+# Add parent directory to path to import agents and config
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from config import AGENT_MODEL, MCP_TOKENSTATS_URL, MCP_AGENT_INVENTORY_URL
 
 # Import agents
 try:
@@ -57,27 +58,183 @@ vertexai.init(
 )
 
 
-def run_retrieve_agent(query: str) -> Dict[str, Any]:
+def get_token_cost_realtime(agent_id: str, input_tokens: int, output_tokens: int, model: str = None) -> Dict[str, Any]:
     """
-    Run the RetrieveAgent
+    Get real-time token cost for a specific agent using SummarizerAgent.
+    
+    SummarizerAgent calls mcp-tokenstats MCP server to calculate token costs.
+    
+    Args:
+        agent_id: Agent ID
+        input_tokens: Number of input tokens
+        output_tokens: Number of output tokens
+        model: Model name (default: gemini-2.5-flash)
+        
+    Returns:
+        dict: Token cost information
+    """
+    if summarizer_agent is None:
+        return {"status": "error", "error_message": "SummarizerAgent not available for cost calculation"}
+    
+    try:
+        # Import SummarizerAgent's calculate_token_cost_from_counts function
+        from agents.SummarizerAgent.agent import calculate_token_cost_from_counts
+        
+        # Call SummarizerAgent's function which calls mcp-tokenstats server
+        cost_result = calculate_token_cost_from_counts(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            model=model
+        )
+        
+        # Add agent_id to the result
+        if cost_result.get("status") == "success":
+            cost_result["agent_id"] = agent_id
+            
+        return cost_result
+            
+    except ImportError:
+        # Fallback: SummarizerAgent not properly imported
+        # Try calling it via the agent's run method
+        try:
+            query = f"Calculate token cost for {input_tokens} input tokens and {output_tokens} output tokens using model {model}"
+            result = summarizer_agent.run(query)
+            
+            return {
+                "status": "success",
+                "agent_id": agent_id,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "summarizer_response": str(result),
+                "note": "Cost calculated via SummarizerAgent calling mcp-tokenstats"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "agent_id": agent_id,
+                "error_message": f"Failed to calculate token cost via SummarizerAgent: {str(e)}"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "agent_id": agent_id,
+            "error_message": f"Failed to calculate token cost: {str(e)}"
+        }
+
+
+def run_retrieve_agent(query: str, include_token_costs: bool = True) -> Dict[str, Any]:
+    """
+    Run the RetrieveAgent and optionally get real-time token costs via SummarizerAgent
     
     Args:
         query: Query string for the agent
+        include_token_costs: If True, get real-time token costs for agents found
         
     Returns:
-        dict: Agent response
+        dict: Agent response with optional token cost information
     """
     if retrieve_agent is None:
         return {"status": "error", "error_message": "RetrieveAgent not available"}
     
     try:
+        start_time = time.time()
         result = retrieve_agent.run(query)
-        return {
+        runtime_ms = (time.time() - start_time) * 1000
+        
+        response_data = {
             "status": "success",
             "agent": "RetrieveAgent",
             "query": query,
-            "response": str(result)
+            "response": str(result),
+            "runtime_ms": round(runtime_ms, 2)
         }
+        
+        # If include_token_costs is True, try to extract agent usage and calculate costs
+        if include_token_costs:
+            try:
+                # Try to extract agent_id from query (e.g., "What are the usage statistics for the {agent_id} agent?")
+                import re
+                agent_id_match = re.search(r'(?:for|agent)\s+([^\s]+)', query, re.IGNORECASE)
+                if agent_id_match:
+                    agent_id = agent_id_match.group(1).strip()
+                    
+                    # Get usage statistics directly from AgentInventory MCP
+                    mcp_url = MCP_AGENT_INVENTORY_URL
+                    usage_response = requests.get(
+                        f"{mcp_url}/local/agents/{agent_id}/usage",
+                        timeout=10
+                    )
+                    
+                    if usage_response.status_code == 200:
+                        usage_data = usage_response.json()
+                        avg_input_tokens = usage_data.get("avg_input_tokens")
+                        avg_output_tokens = usage_data.get("avg_output_tokens")
+                        
+                        if avg_input_tokens and avg_output_tokens:
+                            # Get real-time token cost for this agent
+                            token_cost = get_token_cost_realtime(
+                                agent_id=agent_id,
+                                input_tokens=int(avg_input_tokens),
+                                output_tokens=int(avg_output_tokens)
+                            )
+                            
+                            if token_cost.get("status") == "success":
+                                response_data["token_costs"] = {
+                                    agent_id: token_cost
+                                }
+                                response_data["total_cost_usd"] = token_cost.get("total_cost_usd", 0.0)
+                else:
+                    # Try to get all agents and calculate costs for each
+                    mcp_url = os.environ.get("MCP_AGENT_INVENTORY_URL", "http://localhost:8001")
+                    agents_response = requests.get(
+                        f"{mcp_url}/local/agents",
+                        timeout=10
+                    )
+                    
+                    if agents_response.status_code == 200:
+                        agents_data = agents_response.json()
+                        agents_list = agents_data.get("agents", [])
+                        
+                        token_costs = {}
+                        total_cost = 0.0
+                        
+                        for agent in agents_list:
+                            agent_id = agent.get("id")
+                            if agent_id:
+                                # Get usage for this agent
+                                usage_response = requests.get(
+                                    f"{mcp_url}/local/agents/{agent_id}/usage",
+                                    timeout=10
+                                )
+                                
+                                if usage_response.status_code == 200:
+                                    usage_data = usage_response.json()
+                                    avg_input_tokens = usage_data.get("avg_input_tokens")
+                                    avg_output_tokens = usage_data.get("avg_output_tokens")
+                                    
+                                    if avg_input_tokens and avg_output_tokens:
+                                        # Get real-time token cost
+                                        token_cost = get_token_cost_realtime(
+                                            agent_id=agent_id,
+                                            input_tokens=int(avg_input_tokens),
+                                            output_tokens=int(avg_output_tokens)
+                                        )
+                                        
+                                        if token_cost.get("status") == "success":
+                                            token_costs[agent_id] = token_cost
+                                            total_cost += token_cost.get("total_cost_usd", 0.0)
+                        
+                        if token_costs:
+                            response_data["token_costs"] = token_costs
+                            response_data["total_cost_usd"] = round(total_cost, 6)
+                            
+            except Exception as e:
+                # Don't fail the request if cost calculation fails
+                response_data["token_cost_error"] = str(e)
+        
+        return response_data
+        
     except Exception as e:
         return {
             "status": "error",
@@ -793,7 +950,7 @@ def signal_handler(signum, frame):
 # Create the Orchestrator Agent using Google ADK
 orchestrator_agent = Agent(
     name="workflow_orchestrator",
-    model="gemini-2.5-flash-lite",
+    model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI orchestrator that coordinates multiple agents (RetrieveAgent, ActionExtractor, SummarizerAgent) in parallel for complex workflows.",
     instruction="""
     You are a Workflow Orchestrator that coordinates multiple agents in parallel for complex workflows.

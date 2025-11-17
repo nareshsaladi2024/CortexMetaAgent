@@ -6,10 +6,15 @@ Uses Google ADK to extract actions from reasoning chains, with ReasoningCost MCP
 from google.adk.agents import Agent
 import vertexai
 import os
+import sys
 import requests
 from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 import time
+
+# Add parent directory to path to import config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from config import AGENT_MODEL, MCP_REASONING_COST_URL
 
 # Load environment variables
 load_dotenv()
@@ -31,20 +36,27 @@ def estimate_reasoning_cost(
     steps: int,
     tool_calls: int,
     tokens_in_trace: int,
+    input_tokens: Optional[int] = None,
+    output_tokens: Optional[int] = None,
+    model: Optional[str] = None,
     mcp_server_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Estimate reasoning cost using the ReasoningCost MCP server
+    Estimate reasoning cost using the mcp-reasoning-cost MCP server.
     
     This tool validates reasoning chains by analyzing:
     - Reasoning depth (number of steps)
     - Tool invocations
     - Token expansion
+    - Actual LLM cost in USD (if input/output tokens provided)
     
     Args:
         steps: Number of reasoning steps in the chain
         tool_calls: Number of tool invocations made
         tokens_in_trace: Total tokens used in the reasoning trace
+        input_tokens: Input tokens for LLM cost calculation (optional)
+        output_tokens: Output tokens for LLM cost calculation (optional)
+        model: Model name for pricing (optional, e.g., "gemini-2.5-pro", "gemini-2.5-flash")
         mcp_server_url: URL of the ReasoningCost MCP server (optional)
     
     Returns:
@@ -53,23 +65,37 @@ def estimate_reasoning_cost(
             - tool_invocations: Number of tool invocations
             - expansion_factor: Token expansion factor
             - cost_score: Overall cost score (0.0-1.0+)
+            - estimated_cost_usd: Estimated LLM cost in USD (if input/output tokens provided)
+            - input_cost_usd: Input cost breakdown (if provided)
+            - output_cost_usd: Output cost breakdown (if provided)
     """
-    # Get MCP server URL from environment or use default
+    # Get MCP server URL from config or parameter
     if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_REASONING_COST_URL", "http://localhost:8002")
+        mcp_server_url = MCP_REASONING_COST_URL
     
     estimate_endpoint = f"{mcp_server_url}/estimate"
     
     try:
-        # Make request to MCP server
+        # Build trace object with optional token information
+        trace_data = {
+            "steps": steps,
+            "tool_calls": tool_calls,
+            "tokens_in_trace": tokens_in_trace
+        }
+        
+        # Add optional token information for actual cost calculation
+        if input_tokens is not None:
+            trace_data["input_tokens"] = input_tokens
+        if output_tokens is not None:
+            trace_data["output_tokens"] = output_tokens
+        if model:
+            trace_data["model"] = model
+        
+        # Make request to mcp-reasoning-cost MCP server
         response = requests.post(
             estimate_endpoint,
             json={
-                "trace": {
-                    "steps": steps,
-                    "tool_calls": tool_calls,
-                    "tokens_in_trace": tokens_in_trace
-                }
+                "trace": trace_data
             },
             headers={"Content-Type": "application/json"},
             timeout=10
@@ -86,13 +112,17 @@ def estimate_reasoning_cost(
             "tool_invocations": estimate.get("tool_invocations", tool_calls),
             "expansion_factor": estimate.get("expansion_factor", 1.0),
             "cost_score": estimate.get("cost_score", 0.0),
+            "estimated_cost_usd": estimate.get("estimated_cost_usd"),
+            "input_cost_usd": estimate.get("input_cost_usd"),
+            "output_cost_usd": estimate.get("output_cost_usd"),
+            "model": estimate.get("model"),
             "validation": "passed" if estimate.get("cost_score", 0.0) < 1.0 else "warning"
         }
         
     except requests.exceptions.ConnectionError:
         return {
             "status": "error",
-            "error_message": f"Cannot connect to ReasoningCost MCP server at {mcp_server_url}. Make sure the server is running.",
+            "error_message": f"Cannot connect to mcp-reasoning-cost MCP server at {mcp_server_url}. Make sure the server is running.",
             "reasoning_depth": steps,
             "tool_invocations": tool_calls,
             "cost_score": 0.0,
@@ -101,7 +131,7 @@ def estimate_reasoning_cost(
     except requests.exceptions.Timeout:
         return {
             "status": "error",
-            "error_message": "Request to ReasoningCost MCP server timed out. Please try again.",
+            "error_message": "Request to mcp-reasoning-cost MCP server timed out. Please try again.",
             "reasoning_depth": steps,
             "tool_invocations": tool_calls,
             "cost_score": 0.0,
@@ -110,7 +140,7 @@ def estimate_reasoning_cost(
     except requests.exceptions.HTTPError as e:
         return {
             "status": "error",
-            "error_message": f"ReasoningCost MCP server returned error: {e.response.status_code} - {e.response.text}",
+            "error_message": f"mcp-reasoning-cost MCP server returned error: {e.response.status_code} - {e.response.text}",
             "reasoning_depth": steps,
             "tool_invocations": tool_calls,
             "cost_score": 0.0,
@@ -129,7 +159,7 @@ def estimate_reasoning_cost(
 
 def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
     """
-    Check if the ReasoningCost MCP server is running and healthy.
+    Check if the mcp-reasoning-cost MCP server is running and healthy.
     
     Args:
         mcp_server_url: URL of the ReasoningCost MCP server (optional)
@@ -138,7 +168,7 @@ def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[st
         dict: Dictionary containing server health status
     """
     if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_REASONING_COST_URL", "http://localhost:8002")
+        mcp_server_url = MCP_REASONING_COST_URL
     
     health_endpoint = f"{mcp_server_url}/health"
     
@@ -150,18 +180,21 @@ def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[st
         return {
             "status": "healthy",
             "server_url": mcp_server_url,
+            "server_type": "mcp-reasoning-cost",
             "health_check": health_data
         }
     except requests.exceptions.ConnectionError:
         return {
             "status": "unhealthy",
             "server_url": mcp_server_url,
-            "error_message": f"Cannot connect to ReasoningCost MCP server at {mcp_server_url}. Make sure the server is running."
+            "server_type": "mcp-reasoning-cost",
+            "error_message": f"Cannot connect to mcp-reasoning-cost MCP server at {mcp_server_url}. Make sure the server is running."
         }
     except Exception as e:
         return {
             "status": "error",
             "server_url": mcp_server_url,
+            "server_type": "mcp-reasoning-cost",
             "error_message": f"Error checking server health: {str(e)}"
         }
 
@@ -169,29 +202,44 @@ def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[st
 # Create the AI Agent using Google ADK
 root_agent = Agent(
     name="action_extractor",
-    model="gemini-2.5-flash-lite",  # Fast, cost-effective Gemini model
-    description="An AI agent that extracts actionable items from reasoning chains and validates reasoning cost using the ReasoningCost MCP server.",
+    model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
+    description="An AI agent that extracts actionable items from reasoning chains and validates reasoning cost using the mcp-reasoning-cost MCP server. Can estimate both relative cost scores and actual LLM costs in USD.",
     instruction="""
     You are an ActionExtractor agent that analyzes reasoning chains to:
     1. Extract actionable items and steps from reasoning processes
-    2. Validate reasoning chains for cost efficiency using the ReasoningCost MCP server
+    2. Validate reasoning chains for cost efficiency using the mcp-reasoning-cost MCP server
     3. Identify and flag expensive or runaway reasoning patterns
+    4. Calculate actual LLM costs in USD when token information is available
+    
+    The mcp-reasoning-cost MCP server provides:
+    - Relative cost scores (0.0-1.0+) based on reasoning depth, tool calls, and token expansion
+    - Actual LLM cost in USD (if input/output tokens and model are provided)
     
     When processing reasoning chains:
     1. Analyze the reasoning steps to extract key actions and decisions
     2. Use the estimate_reasoning_cost tool to validate the reasoning chain's cost
+       - Provide steps, tool_calls, and tokens_in_trace (required)
+       - Optionally provide input_tokens, output_tokens, and model for actual USD cost calculation
     3. Present the extracted actions clearly and concisely
     4. Include cost validation information:
-       - If cost_score < 0.6: Reasoning is cost-efficient
-       - If cost_score >= 0.6 and < 1.0: Reasoning is moderately expensive
-       - If cost_score >= 1.0: Warning - Runaway reasoning detected
+       - cost_score interpretation:
+         * If cost_score < 0.6: Reasoning is cost-efficient ✅
+         * If cost_score >= 0.6 and < 1.0: Reasoning is moderately expensive ⚠️
+         * If cost_score >= 1.0: Warning - Runaway reasoning detected 🚨
+       - If estimated_cost_usd is provided: Show actual dollar cost breakdown
+       - expansion_factor: Shows how much the prompt grew (higher = more verbose)
     
     When asked about reasoning validation:
     1. Use the estimate_reasoning_cost tool with the provided metrics
-    2. Interpret the results clearly
-    3. Provide recommendations if reasoning is too expensive
+    2. If you have input/output token counts and model name, include them for USD cost calculation
+    3. Interpret the results clearly:
+       - Explain the cost_score and what it means
+       - If USD costs are available, show the breakdown (input + output = total)
+       - Explain the expansion_factor and reasoning_depth
+    4. Provide recommendations if reasoning is too expensive
     
     Always be helpful, clear, and concise. Format actions in a structured way for easy understanding.
+    Format costs in USD clearly with proper breakdown when available.
     """,
     tools=[estimate_reasoning_cost, check_reasoning_cost_health]
 )

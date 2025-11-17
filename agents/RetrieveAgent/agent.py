@@ -6,9 +6,14 @@ Uses Google ADK to create an agent that queries agent usage statistics from Agen
 from google.adk.agents import Agent
 import vertexai
 import os
+import sys
 import requests
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
+
+# Add parent directory to path to import config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL
 
 # Load environment variables
 load_dotenv()
@@ -28,9 +33,9 @@ vertexai.init(
 
 def get_agent_usage(agent_id: str = "retriever", mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
     """
-    Get usage statistics for an agent from the AgentInventory MCP server
+    Get usage statistics for an agent from the mcp-agent-inventory MCP server.
     
-    This tool queries the AgentInventory MCP server to get:
+    This tool queries the mcp-agent-inventory MCP server to get:
     - Total runs
     - Failures
     - Average input/output tokens
@@ -43,17 +48,17 @@ def get_agent_usage(agent_id: str = "retriever", mcp_server_url: Optional[str] =
     Returns:
         dict: Dictionary containing usage statistics
     """
-    # Get MCP server URL from environment or use default
+    # Get MCP server URL from config or parameter
     if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_AGENT_INVENTORY_URL", "http://localhost:8001")
+        mcp_server_url = MCP_AGENT_INVENTORY_URL
     
-    usage_endpoint = f"{mcp_server_url}/usage"
+    # Use the new endpoint: /local/agents/{agent_id}/usage
+    usage_endpoint = f"{mcp_server_url}/local/agents/{agent_id}/usage"
     
     try:
-        # Make request to MCP server with query parameter
+        # Make request to MCP server
         response = requests.get(
             usage_endpoint,
-            params={"agent": agent_id},
             headers={"Content-Type": "application/json"},
             timeout=10
         )
@@ -78,13 +83,13 @@ def get_agent_usage(agent_id: str = "retriever", mcp_server_url: Optional[str] =
     except requests.exceptions.ConnectionError:
         return {
             "status": "error",
-            "error_message": f"Cannot connect to AgentInventory MCP server at {mcp_server_url}. Make sure the server is running.",
+            "error_message": f"Cannot connect to mcp-agent-inventory MCP server at {mcp_server_url}. Make sure the server is running.",
             "agent_id": agent_id
         }
     except requests.exceptions.Timeout:
         return {
             "status": "error",
-            "error_message": "Request to AgentInventory MCP server timed out. Please try again.",
+            "error_message": "Request to mcp-agent-inventory MCP server timed out. Please try again.",
             "agent_id": agent_id
         }
     except requests.exceptions.HTTPError as e:
@@ -96,7 +101,7 @@ def get_agent_usage(agent_id: str = "retriever", mcp_server_url: Optional[str] =
             }
         return {
             "status": "error",
-            "error_message": f"AgentInventory MCP server returned error: {e.response.status_code} - {e.response.text}",
+            "error_message": f"mcp-agent-inventory MCP server returned error: {e.response.status_code} - {e.response.text}",
             "agent_id": agent_id
         }
     except Exception as e:
@@ -107,23 +112,27 @@ def get_agent_usage(agent_id: str = "retriever", mcp_server_url: Optional[str] =
         }
 
 
-def list_agents(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
+def list_agents(mcp_server_url: Optional[str] = None, include_deployed: bool = False) -> Dict[str, Any]:
     """
-    List all agents in the AgentInventory MCP server
+    List all agents from the mcp-agent-inventory MCP server.
+    
+    Can list both local agents and deployed agents (GCP Reasoning Engine).
     
     Args:
         mcp_server_url: URL of the AgentInventory MCP server (optional)
+        include_deployed: If True, also include deployed agents from GCP Reasoning Engine
     
     Returns:
         dict: Dictionary containing list of agents
     """
-    # Get MCP server URL from environment or use default
+    # Get MCP server URL from config or parameter
     if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_AGENT_INVENTORY_URL", "http://localhost:8001")
-    
-    list_endpoint = f"{mcp_server_url}/list_agents"
+        mcp_server_url = MCP_AGENT_INVENTORY_URL
     
     try:
+        # Use the new endpoint: /local/agents
+        list_endpoint = f"{mcp_server_url}/local/agents"
+        
         response = requests.get(
             list_endpoint,
             headers={"Content-Type": "application/json"},
@@ -133,16 +142,37 @@ def list_agents(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
         response.raise_for_status()
         data = response.json()
         
-        return {
+        result = {
             "status": "success",
             "agents": data.get("agents", []),
-            "total_count": data.get("total_count", len(data.get("agents", [])))
+            "total_count": len(data.get("agents", []))
         }
+        
+        # If include_deployed is True, also get deployed agents
+        if include_deployed:
+            try:
+                deployed_endpoint = f"{mcp_server_url}/deployed/agents"
+                deployed_response = requests.get(
+                    deployed_endpoint,
+                    headers={"Content-Type": "application/json"},
+                    timeout=10
+                )
+                
+                if deployed_response.status_code == 200:
+                    deployed_data = deployed_response.json()
+                    deployed_agents = deployed_data.get("agents", [])
+                    result["deployed_agents"] = deployed_agents
+                    result["deployed_count"] = len(deployed_agents)
+            except Exception:
+                # If deployed agents can't be fetched, continue with local agents only
+                pass
+        
+        return result
         
     except requests.exceptions.ConnectionError:
         return {
             "status": "error",
-            "error_message": f"Cannot connect to AgentInventory MCP server at {mcp_server_url}. Make sure the server is running.",
+            "error_message": f"Cannot connect to mcp-agent-inventory MCP server at {mcp_server_url}. Make sure the server is running.",
             "agents": []
         }
     except Exception as e:
@@ -155,7 +185,7 @@ def list_agents(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
 
 def check_agent_inventory_health(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
     """
-    Check if the AgentInventory MCP server is running and healthy.
+    Check if the mcp-agent-inventory MCP server is running and healthy.
     
     Args:
         mcp_server_url: URL of the AgentInventory MCP server (optional)
@@ -176,18 +206,21 @@ def check_agent_inventory_health(mcp_server_url: Optional[str] = None) -> Dict[s
         return {
             "status": "healthy",
             "server_url": mcp_server_url,
+            "server_type": "mcp-agent-inventory",
             "health_check": health_data
         }
     except requests.exceptions.ConnectionError:
         return {
             "status": "unhealthy",
             "server_url": mcp_server_url,
-            "error_message": f"Cannot connect to AgentInventory MCP server at {mcp_server_url}. Make sure the server is running."
+            "server_type": "mcp-agent-inventory",
+            "error_message": f"Cannot connect to mcp-agent-inventory MCP server at {mcp_server_url}. Make sure the server is running."
         }
     except Exception as e:
         return {
             "status": "error",
             "server_url": mcp_server_url,
+            "server_type": "mcp-agent-inventory",
             "error_message": f"Error checking server health: {str(e)}"
         }
 
@@ -195,14 +228,18 @@ def check_agent_inventory_health(mcp_server_url: Optional[str] = None) -> Dict[s
 # Create the AI Agent using Google ADK
 root_agent = Agent(
     name="retrieve_agent",
-    model="gemini-2.5-flash-lite",  # Fast, cost-effective Gemini model
-    description="An AI agent that retrieves and analyzes agent usage statistics from the AgentInventory MCP server. Specializes in querying agent performance metrics including usage patterns, latency, and failure rates.",
-    instruction="""
-    You are a RetrieveAgent that specializes in retrieving and analyzing agent usage statistics from the AgentInventory MCP server.
+    model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
+    description="An AI agent that retrieves and analyzes agent usage statistics from the mcp-agent-inventory MCP server. Specializes in querying agent performance metrics including usage patterns, latency, and failure rates for both local and deployed (GCP Reasoning Engine) agents.",
+    instruction=""" 
+    You are a RetrieveAgent that specializes in retrieving and analyzing agent usage statistics from the mcp-agent-inventory MCP server.
+    
+    The mcp-agent-inventory MCP server provides:
+    - Local agents: Agents running locally with in-memory inventory
+    - Deployed agents: Agents deployed to GCP Vertex AI Reasoning Engine
     
     Your capabilities include:
-    1. Retrieving usage statistics for specific agents (especially the retriever agent)
-    2. Listing all available agents in the inventory
+    1. Retrieving usage statistics for specific agents (local or deployed)
+    2. Listing all available agents in the inventory (local and/or deployed)
     3. Analyzing agent performance metrics including:
        - Total runs and failure counts
        - Average input/output tokens
@@ -211,20 +248,23 @@ root_agent = Agent(
     4. Providing insights about agent performance and identifying bottlenecks
     
     When users ask about agent usage:
-    1. Use the get_agent_usage tool to query the AgentInventory MCP server
+    1. Use the get_agent_usage tool to query the mcp-agent-inventory MCP server
     2. By default, query for the "retriever" agent, but support other agents too
-    3. Present the results clearly, including:
+    3. The server provides data from /local/agents/{agent_id}/usage endpoint
+    4. Present the results clearly, including:
        - Total runs and failures
        - Success rate percentage
-       - Average token usage
+       - Average token usage (input and output)
        - Latency metrics (p50, p95)
-    4. Provide helpful analysis of the metrics
+    5. Provide helpful analysis of the metrics
     
     When users ask to list agents:
-    1. Use the list_agents tool to get all available agents
-    2. Present the list with descriptions and metadata
+    1. Use the list_agents tool to get all available local agents
+    2. Use list_agents with include_deployed=True to also get deployed agents
+    3. Present the list with descriptions and metadata
+    4. Clearly distinguish between local and deployed agents
     
-    If the MCP server is not available:
+    If the mcp-agent-inventory MCP server is not available:
     1. Use the check_agent_inventory_health tool to diagnose the issue
     2. Provide helpful guidance on how to start the server
     3. Suggest alternative approaches if possible

@@ -33,12 +33,49 @@ BASE_TOKENS = 500  # Baseline token count for standard reasoning
 BASE_STEPS = 5  # Baseline number of reasoning steps
 BASE_TOOL_CALLS = 1  # Baseline number of tool calls
 
+# LLM Pricing per million tokens (default: Gemini 2.5 Pro on Vertex AI)
+# Prices for prompts up to 200,000 tokens
+# Can be overridden via environment variables or request
+DEFAULT_INPUT_TOKEN_PRICE_PER_MILLION = float(os.getenv("LLM_INPUT_TOKEN_PRICE_PER_M", "1.25"))  # $1.25 per million
+DEFAULT_OUTPUT_TOKEN_PRICE_PER_MILLION = float(os.getenv("LLM_OUTPUT_TOKEN_PRICE_PER_M", "10.00"))  # $10.00 per million
+
+# Model pricing presets (per million tokens)
+MODEL_PRICING = {
+    "gemini-2.5-pro": {
+        "input": 1.25,  # $1.25 per million tokens
+        "output": 10.00,  # $10.00 per million tokens
+    },
+    "gemini-1.5-pro": {
+        "input": 1.25,
+        "output": 5.00,
+    },
+    "gemini-1.5-flash": {
+        "input": 0.075,
+        "output": 0.30,
+    },
+    "gpt-4": {
+        "input": 10.00,
+        "output": 30.00,
+    },
+    "gpt-4-turbo": {
+        "input": 10.00,
+        "output": 30.00,
+    },
+    "gpt-3.5-turbo": {
+        "input": 0.50,
+        "output": 1.50,
+    },
+}
+
 
 class Trace(BaseModel):
     """Model for reasoning trace"""
     steps: int
     tool_calls: int
     tokens_in_trace: int
+    input_tokens: Optional[int] = None  # Input tokens for LLM cost calculation
+    output_tokens: Optional[int] = None  # Output tokens for LLM cost calculation
+    model: Optional[str] = None  # Model name for pricing lookup
 
 
 class EstimateRequest(BaseModel):
@@ -52,6 +89,12 @@ class EstimateResponse(BaseModel):
     tool_invocations: int
     expansion_factor: float
     cost_score: float
+    estimated_cost_usd: Optional[float] = None  # Estimated LLM cost in USD
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    model: Optional[str] = None
+    input_cost_usd: Optional[float] = None
+    output_cost_usd: Optional[float] = None
 
 
 def calculate_expansion_factor(tokens_in_trace: int, steps: int) -> float:
@@ -85,6 +128,60 @@ def calculate_expansion_factor(tokens_in_trace: int, steps: int) -> float:
     # Normalize to reasonable range (1.0-3.0 typically)
     # Cap at 3.0 to avoid extreme values
     return min(round(expansion, 2), 3.0)
+
+
+def calculate_llm_cost(
+    input_tokens: Optional[int],
+    output_tokens: Optional[int],
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Calculate actual LLM cost in USD based on token usage
+    
+    Args:
+        input_tokens: Number of input tokens
+        output_tokens: Number of output tokens
+        model: Model name for pricing lookup (optional)
+        
+    Returns:
+        Dictionary with cost breakdown
+    """
+    if input_tokens is None and output_tokens is None:
+        return {
+            "estimated_cost_usd": None,
+            "input_cost_usd": None,
+            "output_cost_usd": None,
+            "model": model
+        }
+    
+    # Get pricing for model or use defaults
+    if model and model in MODEL_PRICING:
+        input_price_per_m = MODEL_PRICING[model]["input"]
+        output_price_per_m = MODEL_PRICING[model]["output"]
+    else:
+        input_price_per_m = DEFAULT_INPUT_TOKEN_PRICE_PER_MILLION
+        output_price_per_m = DEFAULT_OUTPUT_TOKEN_PRICE_PER_MILLION
+    
+    # Calculate costs (convert per million to per token)
+    input_cost = 0.0
+    output_cost = 0.0
+    
+    if input_tokens:
+        input_cost = (input_tokens / 1_000_000) * input_price_per_m
+    
+    if output_tokens:
+        output_cost = (output_tokens / 1_000_000) * output_price_per_m
+    
+    total_cost = input_cost + output_cost
+    
+    return {
+        "estimated_cost_usd": round(total_cost, 6),
+        "input_cost_usd": round(input_cost, 6) if input_tokens else None,
+        "output_cost_usd": round(output_cost, 6) if output_tokens else None,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "model": model or "default"
+    }
 
 
 def calculate_cost_score(
@@ -164,11 +261,24 @@ async def estimate_reasoning_cost(request: EstimateRequest) -> EstimateResponse:
             expansion_factor
         )
         
+        # Calculate actual LLM cost if tokens provided
+        cost_breakdown = calculate_llm_cost(
+            trace.input_tokens,
+            trace.output_tokens,
+            trace.model
+        )
+        
         return EstimateResponse(
             reasoning_depth=reasoning_depth,
             tool_invocations=tool_invocations,
             expansion_factor=expansion_factor,
-            cost_score=cost_score
+            cost_score=cost_score,
+            estimated_cost_usd=cost_breakdown["estimated_cost_usd"],
+            input_tokens=cost_breakdown["input_tokens"],
+            output_tokens=cost_breakdown["output_tokens"],
+            model=cost_breakdown["model"],
+            input_cost_usd=cost_breakdown["input_cost_usd"],
+            output_cost_usd=cost_breakdown["output_cost_usd"]
         )
         
     except HTTPException:
@@ -275,7 +385,7 @@ async def mcp_endpoint(request: Request):
                     "tools": [
                         {
                             "name": "estimate_reasoning_cost",
-                            "description": "Estimate reasoning cost based on trace metrics (steps, tool calls, tokens)",
+                            "description": "Estimate reasoning cost based on trace metrics. Returns both relative cost_score and actual LLM cost in USD if input/output tokens provided.",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -284,7 +394,10 @@ async def mcp_endpoint(request: Request):
                                         "properties": {
                                             "steps": {"type": "integer", "description": "Number of reasoning steps"},
                                             "tool_calls": {"type": "integer", "description": "Number of tool invocations"},
-                                            "tokens_in_trace": {"type": "integer", "description": "Total tokens in the reasoning trace"}
+                                            "tokens_in_trace": {"type": "integer", "description": "Total tokens in the reasoning trace"},
+                                            "input_tokens": {"type": "integer", "description": "Input tokens for LLM cost calculation (optional)"},
+                                            "output_tokens": {"type": "integer", "description": "Output tokens for LLM cost calculation (optional)"},
+                                            "model": {"type": "string", "description": "Model name for pricing (e.g., 'gemini-2.5-pro', 'gpt-4'). Optional, defaults to gemini-2.5-pro pricing."}
                                         },
                                         "required": ["steps", "tool_calls", "tokens_in_trace"]
                                     }

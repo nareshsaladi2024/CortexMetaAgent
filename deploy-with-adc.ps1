@@ -7,11 +7,12 @@ $projectRoot = "C:\AI Agents\CortexEvalAI"
 $agentsDir = "agents"
 
 # Define all agents to deploy
+# Agent IDs match the agent.name in agent.py files
 $agents = @(
-    @{Name="ReasoningCostAgent"; Dir="$agentsDir\ReasoningCostAgent"; Config="$agentsDir\ReasoningCostAgent\.agent_engine_config.json"},
-    @{Name="MetricsAgent"; Dir="$agentsDir\MetricsAgent"; Config="$agentsDir\MetricsAgent\.agent_engine_config.json"},
-    @{Name="TokenCostAgent"; Dir="$agentsDir\TokenCostAgent"; Config="$agentsDir\TokenCostAgent\.agent_engine_config.json"},
-    @{Name="AutoEvalAgent"; Dir="$agentsDir\AutoEvalAgent"; Config="$agentsDir\AutoEvalAgent\.agent_engine_config.json"}
+    @{Name="ReasoningCostAgent"; Dir="$agentsDir\ReasoningCostAgent"; Config="$agentsDir\ReasoningCostAgent\.agent_engine_config.json"; AgentId="ReasoningCostAgent"},
+    @{Name="MetricsAgent"; Dir="$agentsDir\MetricsAgent"; Config="$agentsDir\MetricsAgent\.agent_engine_config.json"; AgentId="MetricsAgent"},
+    @{Name="TokenCostAgent"; Dir="$agentsDir\TokenCostAgent"; Config="$agentsDir\TokenCostAgent\.agent_engine_config.json"; AgentId="TokenCostAgent"},
+    @{Name="AutoEvalAgent"; Dir="$agentsDir\AutoEvalAgent"; Config="$agentsDir\AutoEvalAgent\.agent_engine_config.json"; AgentId="AutoEvalAgent"}
 )
 
 # Navigate to project root (where ADK expects to run from)
@@ -195,13 +196,51 @@ foreach ($agent in $agents) {
     Write-Host "  Config: $($agent.Config)" -ForegroundColor Gray
     Write-Host ""
     
-    # Deploy using ADK
-    # ADK will use Application Default Credentials (your user account)
-    $deploymentStart = Get-Date
-    adk deploy agent_engine --project=$projectId --region=$region $($agent.Dir) --agent_engine_config_file=$($agent.Config)
-    $deploymentExitCode = $LASTEXITCODE
-    $deploymentEnd = Get-Date
-    $deploymentDuration = ($deploymentEnd - $deploymentStart).TotalSeconds
+    # Verify agent directory exists
+    $agentFullPath = Join-Path $projectRoot $agent.Dir
+    if (-not (Test-Path $agentFullPath)) {
+        Write-Host "  [ERROR] Agent directory not found: $agentFullPath" -ForegroundColor Red
+        $deploymentResults += @{
+            Name = $agent.Name
+            Status = "Failed"
+            Duration = 0
+            Error = "Directory not found"
+        }
+        continue
+    }
+    
+    # Change to agent directory (ADK expects to run from the agent directory)
+    $originalLocation = Get-Location
+    try {
+        Set-Location $agentFullPath
+        Write-Host "  Changed to agent directory: $agentFullPath" -ForegroundColor Gray
+        
+        # Deploy using ADK
+        # ADK will use Application Default Credentials (your user account)
+        # Run from agent directory, use relative path for config file
+        # ADK automatically uses agent.name from agent.py, which should match the directory name
+        $configRelativePath = ".agent_engine_config.json"
+        Write-Host "  Agent name (from agent.py): $($agent.AgentId)" -ForegroundColor Gray
+        Write-Host "  Directory name: $($agent.Name)" -ForegroundColor Gray
+        Write-Host "  Note: ADK requires agent.name to match directory name exactly" -ForegroundColor Gray
+        $deploymentStart = Get-Date
+        
+        # Capture both stdout and stderr to see what ADK actually does
+        Write-Host "  Running deployment command..." -ForegroundColor Gray
+        $deploymentOutput = adk deploy agent_engine --project=$projectId --region=$region . --agent_engine_config_file=$configRelativePath 2>&1
+        $deploymentExitCode = $LASTEXITCODE
+        $deploymentEnd = Get-Date
+        $deploymentDuration = ($deploymentEnd - $deploymentStart).TotalSeconds
+        
+        # Display deployment output
+        if ($deploymentOutput) {
+            Write-Host "  Deployment output:" -ForegroundColor Gray
+            $deploymentOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Gray }
+        }
+    } finally {
+        # Always return to original location
+        Set-Location $originalLocation
+    }
     
     if ($deploymentExitCode -eq 0) {
         Write-Host ""

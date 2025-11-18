@@ -201,7 +201,7 @@ def check_reasoning_cost_health(mcp_server_url: Optional[str] = None) -> Dict[st
 
 # Create the AI Agent using Google ADK
 root_agent = Agent(
-    name="reasoning_cost_agent",
+    name="ReasoningCostAgent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI agent that extracts actionable items from reasoning chains and validates reasoning cost using the mcp-reasoning-cost MCP server. Can estimate both relative cost scores and actual LLM costs in USD.",
     instruction="""

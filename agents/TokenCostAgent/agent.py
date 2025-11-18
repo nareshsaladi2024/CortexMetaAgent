@@ -239,7 +239,7 @@ def check_mcp_server_health() -> Dict[str, Any]:
 
 # Create the AI Agent using Google ADK
 root_agent = Agent(
-    name="token_cost_agent",
+    name="TokenCostAgent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI agent that helps analyze token usage statistics and calculate costs using the mcp-tokenstats MCP server. Can estimate token counts, calculate actual costs in USD, and provide insights about text processing requirements.",
     instruction="""

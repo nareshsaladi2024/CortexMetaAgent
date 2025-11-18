@@ -395,7 +395,7 @@ def run_regression_test(agent_id: str, eval_suite_dir: Optional[str] = None, met
 
 # Create the AutoEval Agent using Google ADK
 auto_eval_agent = Agent(
-    name="auto_eval_agent",
+    name="AutoEvalAgent",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
     description="An AI agent that automatically generates evaluation suites for agents and runs regression tests when agent code or configuration changes.",
     instruction="""

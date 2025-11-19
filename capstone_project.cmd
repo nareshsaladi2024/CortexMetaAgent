@@ -87,17 +87,17 @@ echo.
 set /p confirm="Start all MCP servers? (y/n): "
 if /i not "%confirm%"=="y" goto MENU
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-tokenstats"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats"
 start "MCP-TokenStats (8000)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 timeout /t 2 /nobreak >nul
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-agent-inventory"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory"
 start "MCP-AgentInventory (8001)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 timeout /t 2 /nobreak >nul
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-reasoning-cost"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost"
 start "MCP-ReasoningCost (8002)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 echo.
@@ -118,17 +118,17 @@ echo Testing All MCP Servers
 echo ============================================================================
 echo.
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-tokenstats"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats"
 echo Testing mcp-tokenstats (Port 8000)...
 powershell -ExecutionPolicy Bypass -File test_tokenize.ps1
 echo.
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-agent-inventory"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory"
 echo Testing mcp-agent-inventory (Port 8001)...
 powershell -ExecutionPolicy Bypass -File test-agent-inventory.ps1
 echo.
 
-cd /d "%PROJECT_ROOT%\mcp-servers\mcp-reasoning-cost"
+cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost"
 echo Testing mcp-reasoning-cost (Port 8002)...
 powershell -ExecutionPolicy Bypass -File test-reasoning-cost.ps1
 echo.

@@ -58,15 +58,15 @@ if ($env:GOOGLE_APPLICATION_CREDENTIALS) {
 if (-not $serviceAccountFile) {
     Write-Host "Searching for service account JSON file..." -ForegroundColor Cyan
     
-    # Check in mcp-servers directory (common location)
-    $mcpJsonFiles = Get-ChildItem -Path "mcp-servers\*\*.json" -ErrorAction SilentlyContinue | Where-Object { 
+    # Check in CortexEvalAI-MCPServers/mcp-servers directory (common location)
+    $mcpJsonFiles = Get-ChildItem -Path "..\CortexEvalAI-MCPServers\mcp-servers\*\*.json" -ErrorAction SilentlyContinue | Where-Object { 
         $_.Name -notmatch "evalset|agent_engine_config" -and 
         ($_.Name -match "service.*account|.*capstoneproject.*|.*credentials.*" -or $_.Name -match "aiagent-.*\.json")
     }
     
     if ($mcpJsonFiles) {
         $serviceAccountFile = $mcpJsonFiles[0].FullName
-        Write-Host "Found service account file in mcp-servers: $serviceAccountFile" -ForegroundColor Green
+        Write-Host "Found service account file in CortexEvalAI-MCPServers/mcp-servers: $serviceAccountFile" -ForegroundColor Green
     } else {
         # Check in project root
         $rootJsonFiles = Get-ChildItem -Path "*.json" -ErrorAction SilentlyContinue | Where-Object { 
@@ -99,7 +99,7 @@ if (-not $serviceAccountFile) {
     Write-Host "     `$env:GOOGLE_APPLICATION_CREDENTIALS = 'path\to\your-service-account.json'" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  2. Place the service account JSON file in one of:" -ForegroundColor White
-    Write-Host "     - mcp-servers\mcp-agent-inventory\" -ForegroundColor Gray
+    Write-Host "     - ..\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory\" -ForegroundColor Gray
     Write-Host "     - Project root ($projectRoot)" -ForegroundColor Gray
     Write-Host "     - Any agent directory ($agentsDir\*)" -ForegroundColor Gray
     Write-Host ""

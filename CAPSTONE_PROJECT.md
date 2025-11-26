@@ -327,7 +327,10 @@ The automated nature of the system frees developers to focus on agent logic and 
 
 ---
 
-**Project Repository**: [GitHub - CortexMetaAgent](https://github.com/nareshsaladi2024/CortexMetaAgent)  
+**Project Repositories**:
+- [CortexMetaAgent](https://github.com/nareshsaladi2024/CortexMetaAgent) - Main framework repository
+- [CortexMetaAgent-MCPServers](https://github.com/nareshsaladi2024/CortexMetaAgent-MCPServers) - MCP servers repository
+
 **Technology Stack**: Google ADK, Vertex AI, Python, FastAPI, MCP Servers  
 **License**: MIT
 

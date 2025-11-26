@@ -1,5 +1,7 @@
 # Project Description: CortexMetaAgent
 
+**Automated AI agent evaluation framework measuring cost, quality, and performance through token/reasoning costs, usage analytics, and comprehensive evaluation tests.**
+
 ## What We Built
 
 CortexMetaAgent is a comprehensive automated evaluation and testing framework for AI agents built with Google ADK (Agent Development Kit). The system solves critical challenges in AI agent development by automatically generating test suites, monitoring agent changes, and running regression tests to ensure quality and reliability at scale.

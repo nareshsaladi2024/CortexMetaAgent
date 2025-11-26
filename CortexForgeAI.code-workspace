@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../CortexForgeAI"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../CortexEvalAI-MCPServers"
+		},
+		{
+			"path": "../../Learning/kaggle-5-day-agents"
+		}
+	],
+	"settings": {}
+}

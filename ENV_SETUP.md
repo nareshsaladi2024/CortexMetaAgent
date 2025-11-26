@@ -1,20 +1,20 @@
-# Environment Variables Setup for CortexEvalAI
+# Environment Variables Setup for CortexMetaAgent
 
-This guide explains how to set up environment variables for the CortexEvalAI project, including MCP server URLs for local development and Vertex AI deployment.
+This guide explains how to set up environment variables for the CortexMetaAgent project, including MCP server URLs for local development and Vertex AI deployment.
 
 ## Quick Setup
 
 ### For Cloud Run / Vertex AI Deployment
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\setup-env.ps1 -Environment cloud -GoogleApiKey "your-api-key"
 ```
 
 ### For Local Development
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\setup-env.ps1 -Environment local -GoogleApiKey "your-api-key"
 ```
 
@@ -23,7 +23,7 @@ cd "C:\AI Agents\CortexEvalAI"
 Create a `.env` file in the project root with the following content:
 
 ```env
-# CortexEvalAI Environment Variables
+# CortexMetaAgent Environment Variables
 # DO NOT commit this file to version control (it's in .gitignore)
 
 # =============================================================================

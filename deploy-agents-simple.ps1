@@ -1,9 +1,9 @@
-# Simple PowerShell script to deploy all CortexEvalAI agents
+# Simple PowerShell script to deploy all CortexMetaAgent agents
 # Uses ADK deploy command directly
 
 $projectId = "aiagent-capstoneproject"
 $region = "us-central1"
-$projectRoot = "C:\AI Agents\CortexEvalAI"
+$projectRoot = "C:\AI Agents\CortexMetaAgent"
 $agentsDir = "agents"
 
 # Define all agents to deploy with their agent IDs (matching agent.name in agent.py)

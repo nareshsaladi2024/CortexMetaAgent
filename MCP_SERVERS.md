@@ -54,7 +54,7 @@ GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 
 **Start Server:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory
 .\run-server.ps1
 ```
 
@@ -143,7 +143,7 @@ LLM_OUTPUT_TOKEN_PRICE_PER_M=10.00  # Optional override
 
 **Start Server:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost
 .\run-server.ps1
 ```
 
@@ -245,7 +245,7 @@ GOOGLE_API_KEY=your-gemini-api-key  # Required for token counting
 
 **Start Server:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
 .\run-server.ps1
 ```
 
@@ -347,19 +347,19 @@ PORT=8002  # For mcp-reasoning-cost
 
 **Terminal 1 - mcp-tokenstats:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
 .\run-server.ps1
 ```
 
 **Terminal 2 - mcp-agent-inventory:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory
 .\run-server.ps1
 ```
 
 **Terminal 3 - mcp-reasoning-cost:**
 ```powershell
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost
 .\run-server.ps1
 ```
 
@@ -436,22 +436,22 @@ This enables compatibility with:
 
 Each MCP server has its own test script:
 
-- `../CortexEvalAI-MCPServers/mcp-servers/mcp-agent-inventory/test-agent-inventory.ps1`
-- `../CortexEvalAI-MCPServers/mcp-servers/mcp-reasoning-cost/test-reasoning-cost.ps1`
-- `../CortexEvalAI-MCPServers/mcp-servers/mcp-tokenstats/test_tokenize.ps1`
+- `../CortexMetaAgent-MCPServers/mcp-servers/mcp-agent-inventory/test-agent-inventory.ps1`
+- `../CortexMetaAgent-MCPServers/mcp-servers/mcp-reasoning-cost/test-reasoning-cost.ps1`
+- `../CortexMetaAgent-MCPServers/mcp-servers/mcp-tokenstats/test_tokenize.ps1`
 
 **Run tests:**
 ```powershell
 # Test mcp-agent-inventory
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory
 .\test-agent-inventory.ps1
 
 # Test mcp-reasoning-cost
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost
 .\test-reasoning-cost.ps1
 
 # Test mcp-tokenstats
-cd ..\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats
+cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
 .\test_tokenize.ps1
 ```
 

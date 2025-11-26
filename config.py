@@ -1,5 +1,5 @@
 """
-Global Configuration for CortexEvalAI Agents and MCP Servers
+Global Configuration for CortexMetaAgent Agents and MCP Servers
 
 This module provides centralized configuration for all agents and services.
 Configuration values are read from environment variables with sensible defaults.
@@ -94,7 +94,7 @@ def get_mcp_reasoning_cost_url() -> str:
 def print_config():
     """Print current configuration (useful for debugging)"""
     print("=" * 60)
-    print("CortexEvalAI Configuration")
+    print("CortexMetaAgent Configuration")
     print("=" * 60)
     print(f"Agent Model: {AGENT_MODEL}")
     print(f"MCP TokenStats URL: {MCP_TOKENSTATS_URL}")

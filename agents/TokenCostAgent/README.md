@@ -29,7 +29,7 @@ TokenCostAgent is an intelligent agent that helps analyze token usage for text p
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\TokenCostAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\TokenCostAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -64,14 +64,14 @@ MCP_TOKENSTATS_URL=http://localhost:8000
 
 In one terminal:
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-tokenstats"
+cd "C:\AI Agents\CortexMetaAgent\mcp-servers\mcp-tokenstats"
 .\run-server.ps1
 ```
 
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\TokenCostAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\TokenCostAgent"
 .\run-agent.ps1
 ```
 

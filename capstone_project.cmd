@@ -1,14 +1,14 @@
 @echo off
 REM ============================================================================
-REM CortexEvalAI Capstone Project - Quick Command Reference
+REM CortexMetaAgent Capstone Project - Quick Command Reference
 REM ============================================================================
 REM This batch file provides quick commands for deploying and managing
-REM all CortexEvalAI agents and MCP servers.
+REM all CortexMetaAgent agents and MCP servers.
 REM ============================================================================
 
 setlocal enabledelayedexpansion
 
-set PROJECT_ROOT=C:\AI Agents\CortexEvalAI
+set PROJECT_ROOT=C:\AI Agents\CortexMetaAgent
 set PROJECT_ID=aiagent-capstoneproject
 set REGION=us-central1
 set AGENTS_DIR=agents
@@ -21,7 +21,7 @@ REM ============================================================================
 cls
 echo.
 echo ============================================================================
-echo CortexEvalAI Capstone Project - Command Menu
+echo CortexMetaAgent Capstone Project - Command Menu
 echo ============================================================================
 echo.
 echo 1. Deploy All Agents (ReasoningCostAgent, MetricsAgent, TokenCostAgent, AutoEvalAgent)
@@ -54,7 +54,7 @@ REM ============================================================================
 cls
 echo.
 echo ============================================================================
-echo Deploying All CortexEvalAI Agents
+echo Deploying All CortexMetaAgent Agents
 echo ============================================================================
 echo.
 cd /d "%PROJECT_ROOT%"
@@ -87,17 +87,17 @@ echo.
 set /p confirm="Start all MCP servers? (y/n): "
 if /i not "%confirm%"=="y" goto MENU
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats"
 start "MCP-TokenStats (8000)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 timeout /t 2 /nobreak >nul
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory"
 start "MCP-AgentInventory (8001)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 timeout /t 2 /nobreak >nul
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost"
 start "MCP-ReasoningCost (8002)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
 echo.
@@ -118,17 +118,17 @@ echo Testing All MCP Servers
 echo ============================================================================
 echo.
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-tokenstats"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats"
 echo Testing mcp-tokenstats (Port 8000)...
 powershell -ExecutionPolicy Bypass -File test_tokenize.ps1
 echo.
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-agent-inventory"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory"
 echo Testing mcp-agent-inventory (Port 8001)...
 powershell -ExecutionPolicy Bypass -File test-agent-inventory.ps1
 echo.
 
-cd /d "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers\mcp-reasoning-cost"
+cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost"
 echo Testing mcp-reasoning-cost (Port 8002)...
 powershell -ExecutionPolicy Bypass -File test-reasoning-cost.ps1
 echo.
@@ -161,7 +161,7 @@ REM ============================================================================
 cls
 echo.
 echo ============================================================================
-echo CortexEvalAI Configuration
+echo CortexMetaAgent Configuration
 echo ============================================================================
 echo.
 echo Project Root: %PROJECT_ROOT%
@@ -241,7 +241,7 @@ REM ============================================================================
 :END
 cls
 echo.
-echo Thank you for using CortexEvalAI Capstone Project commands!
+echo Thank you for using CortexMetaAgent Capstone Project commands!
 echo.
 endlocal
 exit /b 0

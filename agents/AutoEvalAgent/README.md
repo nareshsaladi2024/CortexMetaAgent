@@ -70,7 +70,7 @@ Generates four types of evaluation datasets:
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\AutoEvalAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\AutoEvalAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -96,20 +96,20 @@ $env:MCP_TOKENSTATS_URL = "http://localhost:8000"
 
 **Terminal 1 - AgentInventory:**
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-agent-inventory"
+cd "C:\AI Agents\CortexMetaAgent\mcp-servers\mcp-agent-inventory"
 .\run-server.ps1
 ```
 
 **Terminal 2 - TokenStats:**
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-tokenstats"
+cd "C:\AI Agents\CortexMetaAgent\mcp-servers\mcp-tokenstats"
 .\run-server.ps1
 ```
 
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\AutoEvalAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\AutoEvalAgent"
 .\run-agent.ps1
 ```
 

@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 import vertexai
 from google.adk.agents import Agent, ParallelAgent, SequentialAgent
 
-# Put CortexEvalAI root on sys.path so we can import sibling agents
+# Put CortexMetaAgent root on sys.path so we can import sibling agents
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -34,10 +34,10 @@ vertexai.init(
 )
 
 # Import sub-agents
-from CortexEvalAI.agents.AutoEvalAgent.agent import auto_eval_agent
-from CortexEvalAI.agents.MetricsAgent.agent import root_agent as metrics_agent
-from CortexEvalAI.agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
-from CortexEvalAI.agents.TokenCostAgent.agent import root_agent as token_cost_agent
+from CortexMetaAgent.agents.AutoEvalAgent.agent import auto_eval_agent
+from CortexMetaAgent.agents.MetricsAgent.agent import root_agent as metrics_agent
+from CortexMetaAgent.agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
+from CortexMetaAgent.agents.TokenCostAgent.agent import root_agent as token_cost_agent
 
 # Parallel stage: get inventory + usage + costs
 meta_parallel_stage = ParallelAgent(

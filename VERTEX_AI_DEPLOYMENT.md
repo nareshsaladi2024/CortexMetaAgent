@@ -1,11 +1,11 @@
 # Deploying Agents to Vertex AI Reasoning Engine
 
-This guide explains how to deploy CortexEvalAI agents to Vertex AI Reasoning Engine with proper MCP server URL configuration.
+This guide explains how to deploy CortexMetaAgent agents to Vertex AI Reasoning Engine with proper MCP server URL configuration.
 
 ## Quick Start
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\deploy-to-vertex-ai.ps1
 ```
 
@@ -19,7 +19,7 @@ Or with API key:
 
 1. **Google Cloud SDK (gcloud CLI)** installed and configured
 2. **ADK (Agent Development Kit)** installed
-3. **MCP Servers deployed to Cloud Run** (see `CortexEvalAI-MCPServers/mcp-servers/CLOUD_RUN.md`)
+3. **MCP Servers deployed to Cloud Run** (see `CortexMetaAgent-MCPServers/mcp-servers/CLOUD_RUN.md`)
 4. **Service Account** with appropriate permissions:
    - `roles/aiplatform.user` or `roles/aiplatform.admin`
    - `roles/run.invoker` (to call Cloud Run services)
@@ -86,14 +86,14 @@ The deployment script automatically retrieves these URLs and updates the `.env` 
 ### Step 1: Deploy MCP Servers to Cloud Run
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI-MCPServers\mcp-servers"
+cd "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers"
 .\deploy-to-cloud-run.ps1 -DeployAll
 ```
 
 ### Step 2: Deploy Agents to Vertex AI
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\deploy-to-vertex-ai.ps1
 ```
 
@@ -184,7 +184,7 @@ If agents can't read environment variables in Vertex AI:
 If you prefer to deploy manually:
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\AutoEvalAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\AutoEvalAgent"
 adk deploy agent_engine --project=aiagent-capstoneproject --region=us-central1 . --agent_engine_config_file=.agent_engine_config.json
 ```
 
@@ -201,7 +201,7 @@ After successful deployment:
 
 ## Related Documentation
 
-- [MCP Servers Cloud Run Deployment](../../CortexEvalAI-MCPServers/mcp-servers/CLOUD_RUN.md)
+- [MCP Servers Cloud Run Deployment](../../CortexMetaAgent-MCPServers/mcp-servers/CLOUD_RUN.md)
 - [Environment Variables Setup](ENV_SETUP.md)
-- [MCP Servers Documentation](../../CortexEvalAI/MCP_SERVERS.md)
+- [MCP Servers Documentation](../../CortexMetaAgent/MCP_SERVERS.md)
 

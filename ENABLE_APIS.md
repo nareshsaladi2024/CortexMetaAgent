@@ -1,6 +1,6 @@
 # Enabling Required Google Cloud APIs
 
-This guide lists all required Google Cloud APIs for the CortexEvalAI project and how to enable them.
+This guide lists all required Google Cloud APIs for the CortexMetaAgent project and how to enable them.
 
 ## Required APIs
 

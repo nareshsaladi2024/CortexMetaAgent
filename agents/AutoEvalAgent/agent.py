@@ -12,8 +12,7 @@ import json
 import random
 from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dotenv import load_dotenv
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from evaluator import run_adk_cli_eval, run_evaluation_pytest as run_pytest_eval
 # Add parent directory to path to import utilities and config

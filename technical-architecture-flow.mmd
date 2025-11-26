@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant Scheduler
+    participant Orchestrator
+    participant MetricsAgent
+    participant AgentInventory
+    participant TokenCostAgent
+    participant TokenStats
+    participant AutoEvalAgent
+    participant Evaluator
+    participant Agent
+    
+    Scheduler->>Orchestrator: Trigger React Cycle (every 15 min)
+    Orchestrator->>MetricsAgent: Run query to list agents
+    MetricsAgent->>AgentInventory: GET /local/agents & /deployed/agents
+    AgentInventory-->>MetricsAgent: Agent metadata with tokens
+    MetricsAgent-->>Orchestrator: Agent list with usage stats
+    
+    Note over Orchestrator,TokenCostAgent: Real-Time Cost Tracking
+    Orchestrator->>TokenCostAgent: get_token_cost_realtime(agent_id, input_tokens, output_tokens)
+    TokenCostAgent->>TokenStats: POST /tokenize (calculate_cost_from_counts)
+    TokenStats-->>TokenCostAgent: USD cost breakdown
+    TokenCostAgent-->>Orchestrator: Token costs (input_cost_usd, output_cost_usd, total_cost_usd)
+    
+    Orchestrator->>Orchestrator: Compare with cache
+    
+    alt Agent Changed
+        Orchestrator->>AutoEvalAgent: Generate negative tests
+        AutoEvalAgent->>AutoEvalAgent: LLM generates test cases
+        AutoEvalAgent-->>Orchestrator: Negative test suite created
+        
+        Orchestrator->>Evaluator: Run regression test (positive suite)
+        Evaluator->>Agent: Execute positive tests
+        Agent-->>Evaluator: Test results
+        Evaluator-->>Orchestrator: PASS/FAIL summary
+        
+        Orchestrator->>Orchestrator: Update state cache with costs
+    else No Changes
+        Orchestrator->>Scheduler: Continue waiting
+    end

@@ -3,7 +3,7 @@
 Write-Host "🔧 Fixing Git Push Issues" -ForegroundColor Green
 Write-Host ""
 
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 
 # 1. Flush DNS cache
 Write-Host "1. Flushing DNS cache..." -ForegroundColor Cyan
@@ -59,7 +59,7 @@ Write-Host ""
 # 5. Try push with different methods
 Write-Host "5. Attempting git push..." -ForegroundColor Cyan
 Write-Host "   If this fails, try:" -ForegroundColor Yellow
-Write-Host "   - Using SSH instead: git remote set-url origin git@github.com:nareshsaladi2024/CortexEvalAI.git" -ForegroundColor Cyan
+Write-Host "   - Using SSH instead: git remote set-url origin git@github.com:nareshsaladi2024/CortexMetaAgent.git" -ForegroundColor Cyan
 Write-Host "   - Using Personal Access Token in URL" -ForegroundColor Cyan
 Write-Host ""
 

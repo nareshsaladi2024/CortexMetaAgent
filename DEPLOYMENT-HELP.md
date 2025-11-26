@@ -31,19 +31,19 @@ https://console.cloud.google.com/vertex-ai/agent-builder/reasoning-engines?proje
 
 ### Option 1: Simple Deployment Script
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\deploy-agents-simple.ps1
 ```
 
 ### Option 2: Service Account Deployment
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\deploy-with-service-account.ps1
 ```
 
 ### Option 3: ADC Deployment (User Account)
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\deploy-with-adc.ps1
 ```
 
@@ -52,7 +52,7 @@ cd "C:\AI Agents\CortexEvalAI"
 After running deployment, verify agents exist:
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 .\test-list-agents.ps1
 ```
 
@@ -83,7 +83,7 @@ The service account or user account needs:
 ### 4. Directory Issues
 Make sure you're running from the project root:
 ```powershell
-cd "C:\AI Agents\CortexEvalAI"
+cd "C:\AI Agents\CortexMetaAgent"
 ```
 
 ## Check Deployment Output
@@ -104,7 +104,7 @@ If deployments show "success" but agents don't appear:
 To test a single agent manually:
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\ReasoningCostAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\ReasoningCostAgent"
 adk deploy agent_engine `
     --project=aiagent-capstoneproject `
     --region=us-central1 `

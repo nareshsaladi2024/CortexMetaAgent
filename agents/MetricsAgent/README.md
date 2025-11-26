@@ -32,7 +32,7 @@ MetricsAgent specializes in querying agent usage statistics and performance metr
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\MetricsAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\MetricsAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -67,14 +67,14 @@ MCP_AGENT_INVENTORY_URL=http://localhost:8001
 
 In one terminal:
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-agent-inventory"
+cd "C:\AI Agents\CortexMetaAgent\mcp-servers\mcp-agent-inventory"
 .\run-server.ps1
 ```
 
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\MetricsAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\MetricsAgent"
 .\run-agent.ps1
 ```
 

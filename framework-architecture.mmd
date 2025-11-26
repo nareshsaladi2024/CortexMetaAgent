@@ -1,0 +1,43 @@
+graph TB
+    subgraph "Target Agent Layer (Examples)"
+        T1[Workshop Agents<br/>Learning/kaggle-5-day-agents]
+        T2[Other Local Agents<br/>Any repo folders]
+        T3[Hosted Agents<br/>MCP / Reasoning Engine]
+    end
+
+    subgraph "Evaluation Framework Layer (CortexMetaAgent)"
+        M1[MetricsAgent<br/>Inventory & Usage]
+        A1[AutoEvalAgent<br/>Eval Generation & Regression]
+        R1[ReasoningCostAgent<br/>Reasoning Cost]
+        C1[TokenCostAgent<br/>Token Cost]
+        META[CortexMetaAgent<br/>Coordinator / Orchestrator]
+    end
+
+    subgraph "MCP / Infra Layer"
+        S1[mcp-agent-inventory<br/>Agent metadata & usage]
+        S2[mcp-tokenstats<br/>Token stats & cost]
+        S3[mcp-reasoning-cost<br/>Reasoning cost service]
+    end
+
+    T1 --> META
+    T2 --> META
+    T3 --> META
+
+    META --> M1
+    META --> A1
+    META --> R1
+    META --> C1
+
+    M1 --> S1
+    A1 --> S1
+    A1 --> S2
+    C1 --> S2
+    R1 --> S3
+
+    classDef target fill:#f0f8ff,stroke:#999;
+    classDef framework fill:#fff4e1,stroke:#999;
+    classDef infra fill:#f9fbe7,stroke:#999;
+
+    class T1,T2,T3 target;
+    class M1,A1,R1,C1,META framework;
+    class S1,S2,S3 infra;

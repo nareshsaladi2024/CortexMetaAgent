@@ -30,7 +30,7 @@ ReasoningCostAgent analyzes reasoning chains to:
 ### 1. Install Dependencies
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\ReasoningCostAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\ReasoningCostAgent"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -65,14 +65,14 @@ MCP_REASONING_COST_URL=http://localhost:8002
 
 In one terminal:
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\mcp-servers\mcp-reasoning-cost"
+cd "C:\AI Agents\CortexMetaAgent\mcp-servers\mcp-reasoning-cost"
 .\run-server.ps1
 ```
 
 ### 4. Run the Agent
 
 ```powershell
-cd "C:\AI Agents\CortexEvalAI\agents\ReasoningCostAgent"
+cd "C:\AI Agents\CortexMetaAgent\agents\ReasoningCostAgent"
 .\run-agent.ps1
 ```
 

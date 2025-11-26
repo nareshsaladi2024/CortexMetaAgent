@@ -1,0 +1,39 @@
+graph TB
+    subgraph "MCP Server Layer"
+        MCP1[mcp-tokenstats<br/>:8000<br/>Token Counting & Cost]
+        MCP2[mcp-agent-inventory<br/>:8001<br/>Agent Metadata & Usage]
+        MCP3[mcp-reasoning-cost<br/>:8002<br/>Reasoning Cost Estimation]
+    end
+    
+    subgraph "Agent Layer - MCP Integration"
+        A1[MetricsAgent<br/>↔ mcp-agent-inventory<br/>Query local & deployed agents]
+        A2[ReasoningCostAgent<br/>↔ mcp-reasoning-cost<br/>Validate reasoning chains]
+        A3[TokenCostAgent<br/>↔ mcp-tokenstats<br/>Calculate token costs]
+        A4[AutoEvalAgent<br/>↔ mcp-agent-inventory<br/>↔ mcp-tokenstats<br/>List agents & validate limits]
+    end
+    
+    subgraph "Orchestrator Layer"
+        O1[Workflow Orchestrator<br/>Coordinates all agents<br/>Real-time cost tracking]
+    end
+    
+    MCP2 --> A1
+    MCP3 --> A2
+    MCP1 --> A3
+    MCP2 --> A4
+    MCP1 --> A4
+    
+    A1 --> O1
+    A2 --> O1
+    A3 --> O1
+    A4 --> O1
+    
+    O1 -->|get_token_cost_realtime| A3
+    
+    style A1 fill:#e1f5ff
+    style A2 fill:#e1f5ff
+    style A3 fill:#e1f5ff
+    style A4 fill:#fff4e1
+    style O1 fill:#e8f5e9
+    style MCP1 fill:#fff9c4
+    style MCP2 fill:#fff9c4
+    style MCP3 fill:#fff9c4

@@ -1,114 +1,24 @@
-# CortexEvalAI: Automated Agent Evaluation and Testing System
+# CortexMetaAgent: Automated Agent Evaluation and Testing System
 
 ## Project Overview
 
-CortexEvalAI is a comprehensive automated evaluation and testing framework for AI agents built with Google ADK (Agent Development Kit). The system implements a React pattern (Reasoning and Acting) orchestrator that monitors agent changes, automatically generates evaluation test suites, and runs regression tests to ensure agent quality and reliability.
+CortexMetaAgent is a comprehensive automated evaluation and testing framework for AI agents built with Google ADK (Agent Development Kit). The system implements a React pattern (Reasoning and Acting) orchestrator that monitors agent changes, automatically generates evaluation test suites, and runs regression tests to ensure agent quality and reliability.
 
 ### Key Components
 
+- **CortexMetaAgent**: Unified coordinator agent that orchestrates all specialized agents for comprehensive cross-platform agent governance
 - **Workflow Orchestrator**: Coordinates multiple agents in parallel and implements React pattern for automatic monitoring
 - **AutoEvalAgent**: Dynamically generates evaluation test suites (positive, negative, adversarial, stress) using LLM
 - **MCP Servers**: Microservices for agent inventory tracking, token statistics, and reasoning cost estimation
-- **Agent Ecosystem**: Four specialized agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) working in parallel with dedicated MCP server interfaces
+- **Agent Ecosystem**: Four specialized agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) working in parallel with dedicated MCP server interfaces, all orchestrated by CortexMetaAgent
 
 ### Architecture
 
-```mermaid
-graph TB
-    subgraph "MCP Servers Layer"
-        A1[MCP-TokenStats<br/>Token Usage Stats]
-        A2[MCP-ReasoningCost<br/>Reasoning Cost Estimation]
-        A3[MCP-AgentInventory<br/>Agent Metadata & Usage]
-    end
-    
-    subgraph "Agent Layer"
-        B1[MetricsAgent<br/>Agent Metrics & Usage]
-        B2[ReasoningCostAgent<br/>Reasoning Cost Validation]
-        B3[TokenCostAgent<br/>Token Cost Calculation]
-        B4[AutoEvalAgent<br/>Test Generation & Execution]
-    end
-    
-    subgraph "Orchestrator Layer"
-        C1[Workflow Orchestrator<br/>React Pattern Implementation]
-        C2[Scheduler<br/>Periodic Monitoring]
-        C3[Config Manager<br/>YAML/CLI/Env Config]
-    end
-    
-    subgraph "Evaluation Layer"
-        D1[Positive Test Suite<br/>1000 examples - Expect PASS]
-        D2[Negative Test Suite<br/>600 examples - Expect FAIL]
-        D3[Adversarial Test Suite<br/>400 examples - Expect CONSISTENT]
-        D4[Stress Test Suite<br/>1000 examples - Expect PERFORMANCE]
-    end
-    
-    subgraph "React Pattern Flow"
-        E1[OBSERVE<br/>Detect Agent Changes]
-        E2[THINK<br/>Analyze Changes]
-        E3[ACT<br/>Run Tests & Generate]
-        E4[OBSERVE AGAIN<br/>Verify Results]
-    end
-    
-    A1 --> B3
-    A1 --> B4
-    A2 --> B2
-    A3 --> B1
-    A3 --> B4
-    A3 --> C1
-    
-    B1 --> C1
-    B2 --> C1
-    B3 --> C1
-    B4 --> C1
-    
-    C2 --> C1
-    C3 --> C1
-    
-    C1 --> E1
-    E1 --> E2
-    E2 --> E3
-    E3 --> E4
-    E4 --> C1
-    
-    E3 --> B4
-    B4 --> D1
-    B4 --> D2
-    B4 --> D3
-    B4 --> D4
-    
-    style C1 fill:#e1f5ff
-    style B4 fill:#fff4e1
-    style E1 fill:#e8f5e9
-    style E2 fill:#e8f5e9
-    style E3 fill:#e8f5e9
-    style E4 fill:#e8f5e9
-```
+![CortexMetaAgent Framework Architecture](framework-architecture.png)
 
 ### React Pattern Flow Diagram
 
-```mermaid
-flowchart LR
-    Start([Scheduler Starts]) --> Check{Agent Changes<br/>Detected?}
-    Check -->|Yes| Observe[OBSERVE<br/>Detect Config/Code/Redeploy Changes]
-    Check -->|No| Wait[Wait Interval<br/>15 minutes]
-    Wait --> Check
-    
-    Observe --> Think[THINK<br/>Analyze Change Types]
-    Think --> Act[ACT<br/>Execute Actions]
-    
-    Act --> RegTest[Run Regression Test<br/>Positive Suite - Expect PASS]
-    Act --> GenNeg[Generate Negative Tests<br/>Via AutoEvalAgent]
-    
-    RegTest --> Verify[OBSERVE AGAIN<br/>Verify Results]
-    GenNeg --> Verify
-    
-    Verify --> Update[Update State Cache]
-    Update --> Wait
-    
-    style Observe fill:#4CAF50,color:#fff
-    style Think fill:#2196F3,color:#fff
-    style Act fill:#FF9800,color:#fff
-    style Verify fill:#9C27B0,color:#fff
-```
+![Technical Architecture Flow](technical-architecture-flow.png)
 
 ## Problem Statement
 
@@ -141,9 +51,9 @@ These challenges result in:
 
 ## Solution Statement
 
-### CortexEvalAI: Comprehensive Automated Evaluation Framework
+### CortexMetaAgent: Comprehensive Automated Evaluation Framework
 
-CortexEvalAI addresses these challenges through an integrated system that automates the entire agent evaluation lifecycle.
+CortexMetaAgent addresses these challenges through an integrated system that automates the entire agent evaluation lifecycle.
 
 ### Core Solutions
 
@@ -234,91 +144,120 @@ CortexEvalAI addresses these challenges through an integrated system that automa
 
 #### Agent-to-MCP Server Interface Diagram
 
-```mermaid
-graph TB
-    subgraph "MCP Server Layer"
-        MCP1[mcp-tokenstats<br/>:8000<br/>Token Counting & Cost]
-        MCP2[mcp-agent-inventory<br/>:8001<br/>Agent Metadata & Usage]
-        MCP3[mcp-reasoning-cost<br/>:8002<br/>Reasoning Cost Estimation]
-    end
-    
-    subgraph "Agent Layer - MCP Integration"
-        A1[MetricsAgent<br/>↔ mcp-agent-inventory<br/>Query local & deployed agents]
-        A2[ReasoningCostAgent<br/>↔ mcp-reasoning-cost<br/>Validate reasoning chains]
-        A3[TokenCostAgent<br/>↔ mcp-tokenstats<br/>Calculate token costs]
-        A4[AutoEvalAgent<br/>↔ mcp-agent-inventory<br/>↔ mcp-tokenstats<br/>List agents & validate limits]
-    end
-    
-    subgraph "Orchestrator Layer"
-        O1[Workflow Orchestrator<br/>Coordinates all agents<br/>Real-time cost tracking]
-    end
-    
-    MCP2 --> A1
-    MCP3 --> A2
-    MCP1 --> A3
-    MCP2 --> A4
-    MCP1 --> A4
-    
-    A1 --> O1
-    A2 --> O1
-    A3 --> O1
-    A4 --> O1
-    
-    O1 -->|get_token_cost_realtime| A3
-    
-    style A1 fill:#e1f5ff
-    style A2 fill:#e1f5ff
-    style A3 fill:#e1f5ff
-    style A4 fill:#fff4e1
-    style O1 fill:#e8f5e9
-    style MCP1 fill:#fff9c4
-    style MCP2 fill:#fff9c4
-    style MCP3 fill:#fff9c4
-```
+![Technical Architecture - Agents and MCP](technical-architecture-agents-mcp.png)
 
 #### Component Interaction Flow
 
-```mermaid
-sequenceDiagram
-    participant Scheduler
-    participant Orchestrator
-    participant MetricsAgent
-    participant AgentInventory
-    participant TokenCostAgent
-    participant TokenStats
-    participant AutoEvalAgent
-    participant Evaluator
-    participant Agent
-    
-    Scheduler->>Orchestrator: Trigger React Cycle (every 15 min)
-    Orchestrator->>MetricsAgent: Run query to list agents
-    MetricsAgent->>AgentInventory: GET /local/agents & /deployed/agents
-    AgentInventory-->>MetricsAgent: Agent metadata with tokens
-    MetricsAgent-->>Orchestrator: Agent list with usage stats
-    
-    Note over Orchestrator,TokenCostAgent: Real-Time Cost Tracking
-    Orchestrator->>TokenCostAgent: get_token_cost_realtime(agent_id, input_tokens, output_tokens)
-    TokenCostAgent->>TokenStats: POST /tokenize (calculate_cost_from_counts)
-    TokenStats-->>TokenCostAgent: USD cost breakdown
-    TokenCostAgent-->>Orchestrator: Token costs (input_cost_usd, output_cost_usd, total_cost_usd)
-    
-    Orchestrator->>Orchestrator: Compare with cache
-    
-    alt Agent Changed
-        Orchestrator->>AutoEvalAgent: Generate negative tests
-        AutoEvalAgent->>AutoEvalAgent: LLM generates test cases
-        AutoEvalAgent-->>Orchestrator: Negative test suite created
-        
-        Orchestrator->>Evaluator: Run regression test (positive suite)
-        Evaluator->>Agent: Execute positive tests
-        Agent-->>Evaluator: Test results
-        Evaluator-->>Orchestrator: PASS/FAIL summary
-        
-        Orchestrator->>Orchestrator: Update state cache with costs
-    else No Changes
-        Orchestrator->>Scheduler: Continue waiting
-    end
+![Technical Architecture Flow](technical-architecture-flow.png)
+
+## CortexMetaAgent: How It Differs From Existing Agent Monitoring Tools
+
+### Overview
+
+CortexMetaAgent is a unified coordinator agent that orchestrates the entire agent evaluation and monitoring ecosystem. Unlike traditional monitoring tools that focus on single aspects of agent performance, CortexMetaAgent provides comprehensive cross-platform governance by coordinating multiple specialized agents in a structured workflow.
+
+### Key Differences from Existing Tools
+
+Traditional agent monitoring tools typically focus on:
+- **Single Metrics**: Only tracking one type of metric (e.g., just token usage or just error rates)
+- **Reactive Monitoring**: Waiting for issues to occur before alerting
+- **Platform-Specific**: Tied to a single deployment platform or framework
+- **Manual Analysis**: Requiring human intervention to correlate different metrics
+- **Static Test Suites**: Using fixed test cases that don't evolve with agents
+
+CortexMetaAgent fundamentally differs by:
+- **Unified Orchestration**: Coordinates multiple specialized agents (MetricsAgent, AutoEvalAgent, ReasoningCostAgent, TokenCostAgent) in parallel and sequential patterns
+- **Proactive Evaluation**: Automatically generates and extends test suites based on agent changes
+- **Cross-Platform Governance**: Works with local agents, deployed agents (GCP Reasoning Engine), and MCP-based agents
+- **Intelligent Synthesis**: Automatically correlates metrics, costs, and evaluation results into actionable insights
+- **Dynamic Test Generation**: Continuously evolves test suites to match agent capabilities
+
+### What Existing Tools Do
+
+Existing agent monitoring and evaluation tools typically provide:
+
+1. **Basic Metrics Tracking**: Simple counters for runs, failures, latency
+2. **Token Usage Monitoring**: Basic token counting without cost analysis
+3. **Error Logging**: Simple error tracking and alerting
+4. **Manual Test Execution**: Requiring developers to manually run test suites
+5. **Platform-Specific Monitoring**: Tools tied to specific platforms (e.g., only Vertex AI, only local)
+6. **Static Dashboards**: Pre-configured views that don't adapt to agent changes
+7. **Reactive Alerts**: Notifications only after problems occur
+
+### What CortexMetaAgent Adds
+
+CortexMetaAgent extends beyond traditional monitoring by providing:
+
+1. **Intelligent Agent Orchestration**:
+   - **Parallel Execution**: Runs MetricsAgent, ReasoningCostAgent, and TokenCostAgent simultaneously for efficiency
+   - **Sequential Refinement**: Uses AutoEvalAgent to extend test suites and run regressions based on gathered metrics
+   - **Context-Aware Workflows**: Synthesizes inventory, usage, and cost data before making evaluation decisions
+
+2. **Automated Test Suite Evolution**:
+   - **Dynamic Test Generation**: AutoEvalAgent generates new test cases based on agent capabilities and failure patterns
+   - **Versioned Test Suites**: Never overwrites existing tests; adds new versions to track evolution
+   - **Comprehensive Coverage**: Generates positive, negative, adversarial, and stress test suites automatically
+
+3. **Unified Cost Analysis**:
+   - **Token Cost Calculation**: Real-time USD cost calculation using official LLM pricing
+   - **Reasoning Cost Estimation**: Validates reasoning chains and estimates action costs
+   - **Cost-Performance Correlation**: Links cost metrics with performance metrics for optimization insights
+
+4. **Cross-Platform Agent Inventory**:
+   - **Unified Agent Discovery**: Discovers agents across local repositories, deployed services, and MCP servers
+   - **Usage Pattern Analysis**: Tracks usage statistics, failure modes, and success rates across all platforms
+   - **Deployment State Tracking**: Monitors agent deployment status and configuration changes
+
+5. **Proactive Regression Testing**:
+   - **Automatic Change Detection**: Monitors agents for configuration, code, or redeployment changes
+   - **Immediate Regression Validation**: Runs positive test suites when changes are detected
+   - **Failure Mode Analysis**: Identifies patterns in failures to guide test generation
+
+6. **Intelligent Synthesis and Reporting**:
+   - **Per-Agent Summaries**: Compact tables showing eval coverage, reasoning/cost metrics, token costs, and recommended actions
+   - **Contextual Recommendations**: Suggests next actions based on synthesized metrics and evaluation results
+   - **Failure Mode Documentation**: Tracks known failure modes and cost profiles per agent
+
+### Unified Cross-Platform Agent Governance
+
+CortexMetaAgent provides unified governance across multiple agent deployment platforms:
+
+#### Multi-Platform Support
+
+- **Local Agents**: Monitors agents in local repositories and development environments
+- **Deployed Agents**: Tracks agents deployed to GCP Reasoning Engine (Vertex AI)
+- **MCP-Based Agents**: Integrates with agents exposed through Model Control Protocol servers
+- **Hybrid Environments**: Seamlessly works across mixed deployment scenarios
+
+#### Unified Workflow Pattern
+
 ```
+1. Parallel Metrics Gathering
+   ├── MetricsAgent → Agent inventory & usage stats
+   ├── ReasoningCostAgent → Reasoning chain analysis
+   └── TokenCostAgent → Token usage & cost calculation
+
+2. Sequential Evaluation & Testing
+   └── AutoEvalAgent → Test generation & regression testing
+       (uses synthesized context from parallel stage)
+
+3. Synthesis & Reporting
+   └── Per-agent summary with recommendations
+```
+
+#### Governance Capabilities
+
+1. **Consistent Evaluation Standards**: All agents, regardless of platform, are evaluated using the same comprehensive test suites
+2. **Cross-Platform Cost Visibility**: Unified cost tracking across local and deployed agents
+3. **Centralized Change Management**: Single point of monitoring for all agent changes across platforms
+4. **Unified Reporting**: Consistent reporting format regardless of agent deployment location
+5. **Platform-Agnostic Test Generation**: Test suites work across all platforms through standardized interfaces
+
+#### Architecture Integration
+
+CortexMetaAgent sits at the top of the CortexMetaAgent architecture, orchestrating all specialized agents:
+
+![CortexMetaAgent Framework Architecture](framework-architecture.png)
 
 ### Key Innovations
 
@@ -346,7 +285,7 @@ sequenceDiagram
 
 ### Achievements
 
-CortexEvalAI successfully addresses the critical challenges in AI agent development by providing:
+CortexMetaAgent successfully addresses the critical challenges in AI agent development by providing:
 
 ✅ **Automated Test Generation**: LLM-based dynamic test suite creation eliminates manual effort  
 ✅ **Change Detection**: Automatic monitoring of agent changes through React pattern  
@@ -382,13 +321,13 @@ Potential areas for future development:
 
 ### Final Thoughts
 
-CortexEvalAI represents a significant step forward in AI agent development and evaluation. By combining the power of LLM-based generation, React pattern monitoring, and comprehensive test suites, the system provides a robust foundation for building reliable, high-quality AI agents at scale.
+CortexMetaAgent represents a significant step forward in AI agent development and evaluation. By combining the power of LLM-based generation, React pattern monitoring, and comprehensive test suites, the system provides a robust foundation for building reliable, high-quality AI agents at scale.
 
-The automated nature of the system frees developers to focus on agent logic and capabilities rather than test maintenance, while the React pattern ensures that changes are detected and validated automatically. This combination of automation and reliability makes CortexEvalAI an essential tool for modern AI agent development.
+The automated nature of the system frees developers to focus on agent logic and capabilities rather than test maintenance, while the React pattern ensures that changes are detected and validated automatically. This combination of automation and reliability makes CortexMetaAgent an essential tool for modern AI agent development.
 
 ---
 
-**Project Repository**: [GitHub - CortexEvalAI](https://github.com/nareshsaladi2024/CortexEvalAI)  
+**Project Repository**: [GitHub - CortexMetaAgent](https://github.com/nareshsaladi2024/CortexMetaAgent)  
 **Technology Stack**: Google ADK, Vertex AI, Python, FastAPI, MCP Servers  
 **License**: MIT
 

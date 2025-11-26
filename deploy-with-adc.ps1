@@ -1,9 +1,9 @@
-# PowerShell script to deploy all CortexEvalAI agents using Application Default Credentials (ADC)
+# PowerShell script to deploy all CortexMetaAgent agents using Application Default Credentials (ADC)
 # Uses your user account credentials (from gcloud auth)
 # Deploys: ReasoningCostAgent, MetricsAgent, TokenCostAgent, AutoEvalAgent
 
-# ADK requires deployment from the project root (C:\AI Agents\CortexEvalAI)
-$projectRoot = "C:\AI Agents\CortexEvalAI"
+# ADK requires deployment from the project root (C:\AI Agents\CortexMetaAgent)
+$projectRoot = "C:\AI Agents\CortexMetaAgent"
 $agentsDir = "agents"
 
 # Define all agents to deploy
@@ -27,7 +27,7 @@ if (Test-Path $projectRoot) {
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "CortexEvalAI Agent Deployment" -ForegroundColor Cyan
+Write-Host "CortexMetaAgent Agent Deployment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Deploying agents using Application Default Credentials (ADC)..." -ForegroundColor Green

@@ -7,7 +7,7 @@
 			"path": "."
 		},
 		{
-			"path": "../CortexEvalAI-MCPServers"
+			"path": "../CortexMetaAgent-MCPServers"
 		},
 		{
 			"path": "../../Learning/kaggle-5-day-agents"

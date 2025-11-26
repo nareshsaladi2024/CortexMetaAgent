@@ -89,6 +89,74 @@ The Workflow Orchestrator coordinates multiple agents in parallel for efficiency
 
 The system runs React cycles automatically every 15 minutes (configurable via YAML, CLI, or environment variables), ensuring continuous monitoring without manual intervention.
 
+## CortexMetaAgent: How It Differs From Existing Agent Monitoring Tools
+
+### Overview
+
+CortexMetaAgent is a Meta-Agent designed to orchestrate, evaluate, compare, and optimize multiple AI agents across platforms. Unlike existing tools that only monitor or log agent behavior, CortexMetaAgent adds decision-making, governance, evaluation, and cost optimization capabilities.
+
+### Key Differences from Existing Tools
+
+Existing frameworks such as Langfuse, Helicone, Langwatch, and AgentOps provide observability, logging, token tracking, and performance monitoring. However, they lack autonomous reasoning, orchestration, evaluation, and optimization. CortexMetaAgent acts on data—not just observes it.
+
+### What Existing Tools Do
+
+Existing agent monitoring and evaluation tools typically provide:
+
+- **Log agent requests and responses**: Record interactions for debugging and analysis
+- **Track token usage and latency**: Monitor resource consumption and performance metrics
+- **Provide dashboards and analytics**: Visualize agent behavior and trends
+- **Offer traces for debugging**: Enable detailed inspection of agent execution paths
+- **Monitor a single agent or workflow**: Focus on individual agent performance
+
+These tools are valuable but passive—they do not improve the system by themselves.
+
+### What CortexMetaAgent Adds
+
+CortexMetaAgent introduces capabilities no existing tool provides:
+
+- **Autonomous evaluation of agent outputs**: Uses LLM-based evaluation to assess quality, consistency, and correctness without human intervention
+- **Multi-agent comparison for cost/quality trade-offs**: Compares multiple agents on the same tasks to identify optimal cost-performance ratios
+- **Workflow orchestration and agent routing**: Intelligently routes tasks to the most appropriate agent based on capabilities, cost, and performance
+- **Automated regression testing and drift detection**: Continuously monitors for quality degradation and automatically triggers remediation
+- **Reasoning validation and hallucination detection**: Validates reasoning chains and detects inconsistencies or hallucinations in agent outputs
+- **Parallel evaluation through multi-agent consensus**: Uses multiple evaluators in parallel to ensure robust assessment
+- **Governance and policy enforcement across agents**: Enforces quality standards, cost limits, and operational policies across all agents
+
+### Unified Cross-Platform Agent Governance
+
+CortexMetaAgent connects agents from:
+
+- **Google ADK / Agent Runtime**: Native integration with Google's agent development framework
+- **Vertex AI**: Cloud-based agent deployment and execution
+- **OpenAI / Anthropic**: Support for third-party LLM providers
+- **Local LLMs**: Integration with locally deployed models
+- **MCP servers and custom tools**: Extensible architecture for custom integrations
+
+It becomes the single control plane for managing agent intelligence, performance, and cost across heterogeneous environments.
+
+### Autonomous Optimization Layer
+
+Unlike monitoring tools, CortexMetaAgent actively improves the system:
+
+- **Reroutes tasks to cheaper or more accurate agents**: Dynamically selects optimal agents based on real-time performance and cost data
+- **Re-evaluates outputs when uncertainty is detected**: Automatically flags and re-processes uncertain or low-confidence results
+- **Optimizes cost per workflow based on real usage**: Continuously adjusts agent selection to minimize cost while maintaining quality
+- **Identifies failing prompts or agents automatically**: Detects degradation patterns and triggers alerts or automatic remediation
+- **Generates new test cases when gaps are found**: Proactively identifies coverage gaps and generates targeted test cases
+
+### Summary
+
+**Existing tools observe. CortexMetaAgent acts.**
+
+**Existing tools measure quality. CortexMetaAgent improves it.**
+
+**Existing tools show cost. CortexMetaAgent optimizes it.**
+
+**Existing tools track agents individually. CortexMetaAgent orchestrates agents collectively.**
+
+This positions CortexMetaAgent as a new operational intelligence layer above current AI observability solutions, transforming passive monitoring into active governance and optimization.
+
 ## Technical Architecture
 
 CortexMetaAgent follows a layered architecture:

@@ -8,7 +8,7 @@ import vertexai
 from vertexai.generative_models import GenerativeModel
 import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 # Add parent directory to path to import config
@@ -146,42 +146,125 @@ def check_vertex_ai_health() -> Dict[str, Any]:
             "error_message": str(e)
         }
 
-# Create the AI Agent using Google ADK
-root_agent = Agent(
-    name="TokenCostAgent",
-    model=AGENT_MODEL,  # From global config
-    description="An AI agent that analyzes token usage statistics and calculates costs using Vertex AI directly. Can estimate token counts and calculate actual costs in USD.",
-    instruction="""
-    You are a TokenCostAgent that helps analyze token usage statistics and calculate costs.
+
+def calculate_cost_from_response_metadata(
+    metadata: Dict[str, Any],
+    model_name: str = "gemini-1.5-flash"
+) -> Dict[str, Any]:
+    """
+    Calculate cost from LLM response metadata (e.g., from GenerateContentResponse).
     
-    You use the Vertex AI SDK directly to count tokens and a local pricing table to estimate costs.
-    You do NOT need an external MCP server for this.
+    Args:
+        metadata: Dictionary containing token counts. Supports keys:
+                 - prompt_token_count / candidates_token_count
+                 - input_tokens / output_tokens
+        model_name: Model name (default: "gemini-1.5-flash")
+        
+    Returns:
+        dict: Cost breakdown
+    """
+    # Extract token counts handling different formats
+    input_tokens = metadata.get("prompt_token_count") or metadata.get("input_tokens") or 0
+    output_tokens = metadata.get("candidates_token_count") or metadata.get("output_tokens") or 0
     
-    Your capabilities include:
-    1. Analyzing text prompts to estimate token usage (using Vertex AI)
-    2. Calculating actual costs in USD for text processing using official pricing
-    3. Calculating costs from known token counts (input_tokens and output_tokens)
+    return calculate_token_cost_from_counts(
+        input_tokens=int(input_tokens),
+        output_tokens=int(output_tokens),
+        model_name=model_name
+    )
+
+
+def calculate_batch_agent_cost(agents_usage: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Calculate costs for a batch of agents based on provided usage data.
     
-    When users ask about token statistics:
-    1. Use the get_token_stats tool
-       - Provide the prompt text and model name
-    2. Present the results clearly, including:
-       - Number of input tokens
-       - Estimated cost (USD)
-       - Model used
+    Args:
+        agents_usage: List of agent usage dictionaries (from MetricsAgent)
+        
+    Returns:
+        dict: Cost report
+    """
+    report = {
+        "status": "success",
+        "local_agents": [],
+        "total_estimated_cost_usd": 0.0
+    }
     
-    When calculating costs from known token counts:
-    1. Use the calculate_token_cost_from_counts tool
-       - Provide input_tokens, output_tokens, and model name
-    2. Returns detailed cost breakdown with pricing information
-    
-    If Vertex AI is not available:
-    1. Use the check_vertex_ai_health tool to diagnose the issue
-    
-    Always be helpful, clear, and concise in your responses. Format numbers and costs in a readable way.
-    """,
-    tools=[get_token_stats, calculate_token_cost_from_counts, check_vertex_ai_health]
-)
+    for agent_data in agents_usage:
+        # Handle different structures (direct usage dict or wrapper)
+        usage = agent_data.get("usage", agent_data)
+        agent_id = agent_data.get("agent_id", usage.get("agent_id", "unknown"))
+        
+        total_runs = usage.get("total_runs", 0)
+        avg_input = usage.get("avg_input_tokens", 0)
+        avg_output = usage.get("avg_output_tokens", 0)
+        
+        total_input = total_runs * avg_input
+        total_output = total_runs * avg_output
+        
+        # Estimate using default pricing (gemini-1.5-flash)
+        cost_est = calculate_token_cost_from_counts(
+            int(total_input), int(total_output), "gemini-1.5-flash"
+        )
+        
+        agent_cost = {
+            "agent_id": agent_id,
+            "total_runs": total_runs,
+            "total_input_tokens": total_input,
+            "total_output_tokens": total_output,
+            "estimated_total_cost_usd": cost_est["total_cost_usd"]
+        }
+        report["local_agents"].append(agent_cost)
+        report["total_estimated_cost_usd"] += cost_est["total_cost_usd"]
+        
+    return report
+
+    # Create the AI Agent using Google ADK
+    root_agent = Agent(
+        name="TokenCostAgent",
+        model=AGENT_MODEL,  # From global config
+        description="An AI agent that analyzes token usage statistics and calculates costs using Vertex AI directly. Can estimate token counts and calculate actual costs in USD.",
+        instruction="""
+        You are a TokenCostAgent that helps analyze token usage statistics and calculate costs.
+        
+        You use the Vertex AI SDK directly to count tokens and a local pricing table to estimate costs.
+        You do NOT need an external MCP server for this.
+        
+        Your capabilities include:
+        1. Analyzing text prompts to estimate token usage (using Vertex AI)
+        2. Calculating actual costs in USD for text processing using official pricing
+        3. Calculating costs from known token counts (input_tokens and output_tokens)
+        4. Calculating costs directly from LLM response metadata
+        5. Calculating costs for a batch of agents using provided usage data (from MetricsAgent)
+        
+        When users ask about token statistics:
+        1. Use the get_token_stats tool
+           - Provide the prompt text and model name
+        2. Present the results clearly, including:
+           - Number of input tokens
+           - Estimated cost (USD)
+           - Model used
+        
+        When calculating costs from known token counts:
+        1. Use the calculate_token_cost_from_counts tool
+           - Provide input_tokens, output_tokens, and model name
+        2. Returns detailed cost breakdown with pricing information
+        
+        When you have raw metadata from an LLM call:
+        1. Use the calculate_cost_from_response_metadata tool
+           - Provide the metadata dictionary and model name
+           
+        When provided with a list of agent usage data (e.g. from MetricsAgent):
+        1. Use the calculate_batch_agent_cost tool
+        2. Summarize the costs for the provided agents
+        
+        If Vertex AI is not available:
+        1. Use the check_vertex_ai_health tool to diagnose the issue
+        
+        Always be helpful, clear, and concise in your responses. Format numbers and costs in a readable way.
+        """,
+        tools=[get_token_stats, calculate_token_cost_from_counts, calculate_cost_from_response_metadata, calculate_batch_agent_cost, check_vertex_ai_health]
+    )
 
 if __name__ == "__main__":
     # Example usage

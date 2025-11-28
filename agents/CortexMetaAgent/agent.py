@@ -42,51 +42,44 @@ from agents.MetricsAgent.agent import root_agent as metrics_agent
 from agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
 from agents.TokenCostAgent.agent import root_agent as token_cost_agent
 
-# Parallel stage: get inventory + usage + costs
-meta_parallel_stage = ParallelAgent(
-    name="CortexMetaParallelStage",
-    sub_agents=[
-        metrics_agent,          # inventory + usage
-        reasoning_cost_agent,   # reasoning / action cost
-        token_cost_agent,       # token usage + cost
-    ],
-)
-
-# Full coordinator: first gather metrics in parallel, then drive AutoEvalAgent
+# Sequential Coordinator:
+# 1. MetricsAgent: Gather all inventory and usage data
+# 2. TokenCostAgent: Calculate costs based on that usage data
+# 3. ReasoningCostAgent: Analyze reasoning patterns
+# 4. AutoEvalAgent: Run evaluations
 root_agent = SequentialAgent(
     name="CortexMetaAgent",
     sub_agents=[
-        meta_parallel_stage,
-        auto_eval_agent,
+        metrics_agent,          # Step 1: Get inventory + usage
+        token_cost_agent,       # Step 2: Calculate costs (using data from Step 1)
+        reasoning_cost_agent,   # Step 3: Analyze reasoning
+        auto_eval_agent,        # Step 4: Run evals
     ],
-    description="Coordinator agent that uses MetricsAgent, AutoEvalAgent, ReasoningCostAgent, and TokenCostAgent in a loop/parallel pattern.",
+    description="Coordinator agent that orchestrates the agent evaluation lifecycle sequentially: Metrics -> TokenCost -> ReasoningCost -> AutoEval.",
     instruction="""
     You are CortexMetaAgent, a coordinator for agent evaluation and cost analysis.
 
-    Workflow for each target agent:
-    1. Use MetricsAgent (parallel stage) to fetch:
-       - Full agent inventory (IDs, descriptions, deployment info)
-       - Usage stats (runs, failures, latency, success rate)
-    2. In parallel, use ReasoningCostAgent and TokenCostAgent to analyze:
-       - Reasoning chains and action cost
-       - Token usage and dollar cost
-    3. Synthesize this context into a concise summary per agent:
-       - Purpose, usage patterns, known failure modes, and cost profile.
-    4. Call AutoEvalAgent with this summary to:
-       - Append new positive/negative/adversarial/stress eval cases (never overwrite; just add/version)
-       - Run regression tests using ADK CLI and surface regressions.
-    5. Iterate per agent as needed (you can conceptually "loop" by planning multiple passes),
-       always reusing MetricsAgent’s latest inventory and usage context.
+    Your workflow is strictly sequential to ensure data flows efficiently between agents:
 
-    Rules:
-    - Every evaluation or cost decision must be grounded in MetricsAgent's inventory/usage data.
-    - Prefer parallel execution for gathering metrics/costs, then sequential refinement through AutoEvalAgent.
-    - Do not reimplement inventory or usage HTTP calls here; delegate to MetricsAgent.
-    - Always produce a compact table summarizing per-agent:
-      - eval coverage (which suites exist / were extended),
-      - reasoning/cost metrics,
-      - token cost,
-      - recommended next actions.
+    1. **Metrics Phase (MetricsAgent)**:
+       - Call `get_all_agents_usage` to fetch the complete inventory and usage statistics for ALL agents (local and deployed).
+       - This establishes the "ground truth" of what agents exist and how they are performing.
+
+    2. **Cost Analysis Phase (TokenCostAgent)**:
+       - Take the usage data retrieved by MetricsAgent and pass it to TokenCostAgent.
+       - Ask TokenCostAgent to `calculate_batch_agent_cost` using that specific usage data.
+       - This avoids redundant API calls to the inventory server.
+
+    3. **Reasoning Analysis Phase (ReasoningCostAgent)**:
+       - Analyze reasoning chains and action costs for the agents.
+
+    4. **Evaluation Phase (AutoEvalAgent)**:
+       - Synthesize all the above context (inventory, usage, costs, reasoning).
+       - Call AutoEvalAgent to extend eval suites and run regressions based on this comprehensive profile.
+
+    **Crucial Rule**: 
+    - Ensure the output from MetricsAgent (the list of agents and their usage) is clearly available in the context for TokenCostAgent to use. 
+    - Do not ask TokenCostAgent to fetch data from the server again; explicitly direct it to use the data already gathered.
     """,
 )
 

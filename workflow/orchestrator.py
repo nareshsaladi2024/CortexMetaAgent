@@ -48,6 +48,13 @@ except ImportError as e:
     generate_eval_set = None
     list_agents_from_inventory = None
 
+# Import MetricsAgent for agent listing (preferred over direct MCP calls)
+try:
+    from agents.MetricsAgent.agent import list_agents as metrics_list_agents
+except ImportError as e:
+    print(f"Warning: Could not import MetricsAgent: {e}")
+    metrics_list_agents = None
+
 # Load environment variables
 load_dotenv()
 
@@ -517,11 +524,16 @@ def detect_agent_changes(agent_id: Optional[str] = None) -> Dict[str, Any]:
     """
     load_agent_state_cache()
     
-    if list_agents_from_inventory is None:
-        return {"status": "error", "error_message": "AutoEvalAgent not available"}
+    # Use MetricsAgent to list agents (preferred over direct MCP calls)
+    if metrics_list_agents is not None:
+        # Delegate to MetricsAgent
+        current_agents = metrics_list_agents(include_deployed=False)
+    elif list_agents_from_inventory is not None:
+        # Fallback to AutoEvalAgent's delegation function
+        current_agents = list_agents_from_inventory()
+    else:
+        return {"status": "error", "error_message": "Neither MetricsAgent nor AutoEvalAgent available for listing agents"}
     
-    # Get current agents
-    current_agents = list_agents_from_inventory()
     if current_agents.get("status") != "success":
         return {"status": "error", "error_message": "Could not list agents from inventory"}
     

@@ -33,11 +33,11 @@ vertexai.init(
     location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
 )
 
-# Import sub-agents
-from CortexMetaAgent.agents.AutoEvalAgent.agent import auto_eval_agent
-from CortexMetaAgent.agents.MetricsAgent.agent import root_agent as metrics_agent
-from CortexMetaAgent.agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
-from CortexMetaAgent.agents.TokenCostAgent.agent import root_agent as token_cost_agent
+# Import sub-agents (use relative imports from agents directory)
+from agents.AutoEvalAgent.agent import auto_eval_agent
+from agents.MetricsAgent.agent import root_agent as metrics_agent
+from agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
+from agents.TokenCostAgent.agent import root_agent as token_cost_agent
 
 # Parallel stage: get inventory + usage + costs
 meta_parallel_stage = ParallelAgent(
@@ -71,7 +71,7 @@ root_agent = SequentialAgent(
        - Purpose, usage patterns, known failure modes, and cost profile.
     4. Call AutoEvalAgent with this summary to:
        - Append new positive/negative/adversarial/stress eval cases (never overwrite; just add/version)
-       - Run regression tests (pytest or ADK CLI) and surface regressions.
+       - Run regression tests using ADK CLI and surface regressions.
     5. Iterate per agent as needed (you can conceptually "loop" by planning multiple passes),
        always reusing MetricsAgent’s latest inventory and usage context.
 

@@ -13,11 +13,15 @@ from dotenv import load_dotenv
 import time
 
 # Add parent directory to path to import config
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+# Add parent directory to path to import config
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
 from config import AGENT_MODEL, MCP_REASONING_COST_URL
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from shared .env file
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
 
 # Initialize Vertex AI with credentials from environment variables
 # Google Cloud SDK will automatically use Application Default Credentials (ADC)

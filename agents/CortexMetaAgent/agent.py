@@ -21,11 +21,14 @@ import vertexai
 from google.adk.agents import Agent, ParallelAgent, SequentialAgent
 
 # Put CortexMetaAgent root on sys.path so we can import sibling agents
+# Put CortexMetaAgent root on sys.path so we can import sibling agents
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
 
-# Load env
-load_dotenv()
+# Load environment variables from shared .env file
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
 
 # Initialize Vertex AI
 vertexai.init(

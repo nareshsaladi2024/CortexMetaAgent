@@ -16,8 +16,11 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from evaluator import run_adk_cli_eval
 # Add parent directory to path to import utilities and config
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL, MCP_TOKENSTATS_URL
+# Add parent directory to path to import utilities and config
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL
 
 # Import MetricsAgent's list_agents function for delegation
 try:
@@ -26,8 +29,9 @@ except ImportError:
     # Fallback if MetricsAgent not available
     metrics_list_agents = None
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from shared .env file
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
 
 # Initialize Vertex AI with credentials from environment variables
 vertexai.init(

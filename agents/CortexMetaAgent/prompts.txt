@@ -1,0 +1,1 @@
+run one iteration cycle of capturing token/reasoning cost of current agents along with generation of eval tests and its execution

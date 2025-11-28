@@ -14,10 +14,17 @@ from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from evaluator import run_adk_cli_eval, run_evaluation_pytest as run_pytest_eval
+from evaluator import run_adk_cli_eval
 # Add parent directory to path to import utilities and config
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL, MCP_TOKENSTATS_URL
+
+# Import MetricsAgent's list_agents function for delegation
+try:
+    from agents.MetricsAgent.agent import list_agents as metrics_list_agents
+except ImportError:
+    # Fallback if MetricsAgent not available
+    metrics_list_agents = None
 
 # Load environment variables
 load_dotenv()
@@ -33,77 +40,43 @@ vertexai.init(
 
 def list_agents_from_inventory(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
     """
-    List all agents from AgentInventory MCP server
+    List all agents from AgentInventory MCP server.
+    
+    This function delegates to MetricsAgent through CortexMetaAgent architecture.
+    MetricsAgent handles all MCP server interactions for agent inventory.
     
     Args:
-        mcp_server_url: URL of the AgentInventory MCP server (optional)
+        mcp_server_url: URL of the AgentInventory MCP server (optional, passed to MetricsAgent)
     
     Returns:
-        dict: List of agents
+        dict: List of agents with status, agents list, and total_count
     """
-    if not mcp_server_url:
-        mcp_server_url = os.environ.get("MCP_AGENT_INVENTORY_URL", "http://localhost:8001")
-    
-    try:
-        response = requests.get(
-            f"{mcp_server_url}/list_agents",
-            timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        return {
-            "status": "success",
-            "agents": data.get("agents", []),
-            "total_count": data.get("total_count", len(data.get("agents", [])))
-        }
-    except Exception as e:
+    # Delegate to MetricsAgent's list_agents function
+    if metrics_list_agents is None:
         return {
             "status": "error",
-            "error_message": str(e),
+            "error_message": "MetricsAgent not available. Cannot list agents.",
             "agents": []
         }
-
-
-def check_token_limit(prompt: str, max_tokens: int = 4096, mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Check if prompt exceeds token limit using TokenStats MCP
-    
-    Args:
-        prompt: The text prompt to check
-        max_tokens: Maximum allowed tokens
-        mcp_server_url: URL of the TokenStats MCP server (optional)
-    
-    Returns:
-        dict: Token count and whether it exceeds limit
-    """
-    if not mcp_server_url:
-        mcp_server_url = MCP_TOKENSTATS_URL
     
     try:
-        response = requests.post(
-            f"{mcp_server_url}/tokenize",
-            json={"model": "gemini-2.5-flash", "prompt": prompt},
-            timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
+        # Call MetricsAgent's list_agents function
+        result = metrics_list_agents(mcp_server_url=mcp_server_url, include_deployed=False)
         
-        input_tokens = data.get("input_tokens", 0)
-        exceeds_limit = input_tokens > max_tokens
-        
-        return {
-            "status": "success",
-            "input_tokens": input_tokens,
-            "max_tokens": max_tokens,
-            "exceeds_limit": exceeds_limit,
-            "within_limit": not exceeds_limit
-        }
+        # Ensure consistent return format
+        if result.get("status") == "success":
+            return {
+                "status": "success",
+                "agents": result.get("agents", []),
+                "total_count": result.get("total_count", len(result.get("agents", [])))
+            }
+        else:
+            return result
     except Exception as e:
         return {
             "status": "error",
-            "error_message": str(e),
-            "exceeds_limit": False
+            "error_message": f"Error delegating to MetricsAgent: {str(e)}",
+            "agents": []
         }
 
 
@@ -170,44 +143,44 @@ def generate_eval_set(agent_id: str, set_type: str, count: int = None, force_reg
         }
 
 
-def run_eval_suite(agent_id: str, suite_path: str, method: str = "pytest") -> Dict[str, Any]:
+def run_eval_suite(agent_id: str, suite_path: str, method: str = "adk_cli") -> Dict[str, Any]:
     """
-    Run evaluation suite for an agent using pytest or ADK CLI
+    Run evaluation suite for an agent using ADK CLI
     
     Args:
         agent_id: The ID of the agent to evaluate
         suite_path: Path to the evaluation suite directory or file
-        method: Evaluation method ("pytest" or "adk_cli")
+        method: Evaluation method (default: "adk_cli", only ADK CLI is supported)
     
     Returns:
         dict: Evaluation results
     """
+    if method != "adk_cli":
+        return {
+            "status": "error",
+            "error_message": f"Only 'adk_cli' method is supported. Got: {method}",
+            "agent_id": agent_id,
+            "suite_path": suite_path,
+            "method": method
+        }
+    
     try:
-        # Import the evaluator
-        from evaluator import run_evaluation
-        
-        results = run_evaluation(agent_id, suite_path, method=method)
+        # Use ADK CLI eval
+        results = run_adk_cli_eval(agent_id, suite_path)
         return {
             "status": "success",
             "agent_id": agent_id,
             "suite_path": suite_path,
-            "method": method,
+            "method": "adk_cli",
             "results": results
-        }
-    except ImportError:
-        return {
-            "status": "error",
-            "error_message": "evaluator module not found",
-            "agent_id": agent_id,
-            "suite_path": suite_path,
-            "method": method
         }
     except Exception as e:
         return {
             "status": "error",
             "error_message": str(e),
             "agent_id": agent_id,
-            "method": method
+            "suite_path": suite_path,
+            "method": "adk_cli"
         }
 
 
@@ -300,18 +273,26 @@ def create_eval_set_for_new_agent(agent_id: str, generate_dynamically: bool = Tr
     return results
 
 
-def run_regression_test(agent_id: str, eval_suite_dir: Optional[str] = None, method: str = "pytest") -> Dict[str, Any]:
+def run_regression_test(agent_id: str, eval_suite_dir: Optional[str] = None, method: str = "adk_cli") -> Dict[str, Any]:
     """
-    Run regression test when agent code or configuration changes
+    Run regression test when agent code or configuration changes using ADK CLI
     
     Args:
         agent_id: The ID of the agent to test
         eval_suite_dir: Directory containing eval suites (optional)
-        method: Evaluation method ("pytest" or "adk_cli")
+        method: Evaluation method (default: "adk_cli", only ADK CLI is supported)
     
     Returns:
         dict: Regression test results
     """
+    if method != "adk_cli":
+        return {
+            "status": "error",
+            "error_message": f"Only 'adk_cli' method is supported. Got: {method}",
+            "agent_id": agent_id,
+            "suite_dir": eval_suite_dir or f"eval_suites/{agent_id}"
+        }
+    
     if not eval_suite_dir:
         eval_suite_dir = f"eval_suites/{agent_id}"
     
@@ -319,77 +300,47 @@ def run_regression_test(agent_id: str, eval_suite_dir: Optional[str] = None, met
         "status": "success",
         "agent_id": agent_id,
         "suite_dir": eval_suite_dir,
-        "method": method,
+        "method": "adk_cli",
         "test_results": {},
         "summary": {}
     }
     
-    # Run all eval sets
-    if method == "pytest":
-        # Run pytest on the entire suite directory
-        try:
-            import subprocess
-            import sys
-            
-            # Run pytest with the test file
-            test_file = os.path.join(os.path.dirname(__file__), "test_eval_pytest.py")
-            cmd = [
-                sys.executable, "-m", "pytest",
-                test_file,
-                "--agent-id", agent_id,
-                "--eval-suite-dir", os.path.dirname(eval_suite_dir) if os.path.dirname(eval_suite_dir) else "eval_suites",
-                "-v"
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-            
-            results["test_results"]["pytest"] = {
-                "status": "success" if result.returncode == 0 else "error",
-                "returncode": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-        except Exception as e:
-            results["test_results"]["pytest"] = {
-                "status": "error",
-                "error_message": str(e)
-            }
-    else:
-        # Run ADK CLI eval on the entire suite directory
+    # Run ADK CLI eval on the entire suite directory
+    try:
         result = run_eval_suite(agent_id, eval_suite_dir, method="adk_cli")
         results["test_results"]["adk_cli"] = result
-    
-    # Calculate summary
-    total_tests = 0
-    passed_tests = 0
-    failed_tests = 0
-    
-    for method_name, result in results["test_results"].items():
+        
+        # Calculate summary from ADK CLI results
         if result.get("status") == "success":
-            if method_name == "pytest":
-                # Parse pytest output
-                stdout = result.get("stdout", "")
-                # Simple parsing - in production, use pytest JSON output
-                if "passed" in stdout.lower():
-                    passed_tests += stdout.lower().count("passed")
-                    failed_tests += stdout.lower().count("failed")
-                    total_tests = passed_tests + failed_tests
-            else:
-                test_result = result.get("results", {})
-                total = test_result.get("total", 0)
-                passed = test_result.get("passed", 0)
-                failed = test_result.get("failed", 0)
-                
-                total_tests += total
-                passed_tests += passed
-                failed_tests += failed
-    
-    results["summary"] = {
-        "total_tests": total_tests,
-        "passed": passed_tests,
-        "failed": failed_tests,
-        "pass_rate": round((passed_tests / total_tests * 100), 2) if total_tests > 0 else 0
-    }
+            test_result = result.get("results", {})
+            total = test_result.get("total", 0)
+            passed = test_result.get("passed", 0)
+            failed = test_result.get("failed", 0)
+            
+            results["summary"] = {
+                "total_tests": total,
+                "passed": passed,
+                "failed": failed,
+                "pass_rate": round((passed / total * 100), 2) if total > 0 else 0
+            }
+        else:
+            results["summary"] = {
+                "total_tests": 0,
+                "passed": 0,
+                "failed": 0,
+                "pass_rate": 0
+            }
+    except Exception as e:
+        results["test_results"]["adk_cli"] = {
+            "status": "error",
+            "error_message": str(e)
+        }
+        results["summary"] = {
+            "total_tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "pass_rate": 0
+        }
     
     return results
 
@@ -403,7 +354,7 @@ auto_eval_agent = Agent(
     You are an AutoEvalAgent that manages evaluation suites for AI agents.
     
     Your capabilities include:
-    1. Listing all agents from the AgentInventory MCP server
+    1. Listing all agents by delegating to MetricsAgent (which queries AgentInventory MCP server)
     2. Creating evaluation sets for new agents automatically
     3. Generating four types of eval sets:
        - Positive: Valid tasks (multi-doc QA, summarization, classification, extraction)
@@ -418,7 +369,7 @@ auto_eval_agent = Agent(
     
     When creating eval sets for a new agent:
     1. IMPORTANT: Do NOT write eval sets for existing agents - check if eval sets already exist first
-    2. Use list_agents_from_inventory to check the agent's capabilities and description
+    2. Use list_agents_from_inventory (which delegates to MetricsAgent) to check the agent's capabilities and description
     3. Use create_eval_set_for_new_agent to generate all four eval set types dynamically using LLM
     4. The LLM generates different prompts and expected responses based on:
        - Agent's description and capabilities from the inventory
@@ -430,31 +381,22 @@ auto_eval_agent = Agent(
     8. Confirm generation of positive.jsonl (1000), negative.jsonl (600), adversarial.jsonl (400), stress.jsonl (1000)
     
     When running regression tests:
-    1. Use run_regression_test with the agent_id and method ("pytest" or "adk_cli")
-    2. Support both evaluation methods:
-       - pytest: Uses pytest framework for Python-based testing
-       - adk_cli: Uses ADK CLI eval command for Google ADK evaluation
+    1. Use run_regression_test with the agent_id (uses ADK CLI by default)
+    2. Uses ADK CLI eval command for Google ADK evaluation
     3. Validate results according to expectations:
        - Positive tests should PASS
        - Negative tests should FAIL
        - Adversarial tests should be consistent and hallucination-free
     4. Report pass rates and any failures
     
-    When checking token limits:
-    1. Use check_token_limit to verify prompts don't exceed limits
-    2. Use TokenStats MCP to get accurate token counts
-    
     Always be thorough, accurate, and provide detailed reports on evaluation results.
     """,
     tools=[
         list_agents_from_inventory,
-        check_token_limit,
         generate_eval_set,
         create_eval_set_for_new_agent,
         run_eval_suite,
-        run_regression_test,
-        run_adk_cli_eval,
-        run_pytest_eval
+        run_regression_test
     ]
 )
 

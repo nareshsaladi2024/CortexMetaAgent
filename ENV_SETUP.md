@@ -66,7 +66,7 @@ GOOGLE_APPLICATION_CREDENTIALS=aiagent-capstoneproject-10beb4eeaf31.json
 
 # Google API Key for Gemini (used by mcp-tokenstats)
 # Get from: https://aistudio.google.com/app/apikey
-GOOGLE_API_KEY=your-google-api-key-here
+GOOGLE_API_KEY=AIzaSyAaPeS-PaJ0UGRG6vAMuSoa5joAOpdQ5O8
 
 # =============================================================================
 # MCP Server Ports (for running servers locally)

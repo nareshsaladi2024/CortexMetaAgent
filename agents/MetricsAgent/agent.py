@@ -229,6 +229,56 @@ def check_agent_inventory_health(mcp_server_url: Optional[str] = None) -> Dict[s
         }
 
 
+
+def get_all_agents_usage(mcp_server_url: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get usage statistics for ALL local agents from the mcp-agent-inventory MCP server.
+    
+    Args:
+        mcp_server_url: URL of the AgentInventory MCP server (optional)
+        
+    Returns:
+        dict: Dictionary containing usage statistics for all agents
+    """
+    if not mcp_server_url:
+        mcp_server_url = MCP_AGENT_INVENTORY_URL
+        
+    try:
+        # First list all agents
+        list_endpoint = f"{mcp_server_url}/local/agents"
+        resp = requests.get(list_endpoint, timeout=10)
+        resp.raise_for_status()
+        agents = resp.json().get("agents", [])
+        
+        results = []
+        for agent in agents:
+            agent_id = agent.get("id")
+            # Get usage for each
+            usage_endpoint = f"{mcp_server_url}/local/agents/{agent_id}/usage"
+            try:
+                u_resp = requests.get(usage_endpoint, timeout=5)
+                if u_resp.status_code == 200:
+                    u_data = u_resp.json()
+                    results.append({
+                        "agent_id": agent_id,
+                        "description": agent.get("description"),
+                        "usage": u_data
+                    })
+            except Exception:
+                continue
+                
+        return {
+            "status": "success",
+            "agents_usage": results,
+            "count": len(results)
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_message": f"Error getting all agents usage: {str(e)}"
+        }
+
 # Create the AI Agent using Google ADK
 root_agent = Agent(
     name="MetricsAgent",
@@ -244,23 +294,23 @@ root_agent = Agent(
     Your capabilities include:
     1. Retrieving usage statistics for specific agents (local or deployed)
     2. Listing all available agents in the inventory (local and/or deployed)
-    3. Analyzing agent performance metrics including:
+    3. Retrieving usage statistics for ALL agents in one batch
+    4. Analyzing agent performance metrics including:
        - Total runs and failure counts
        - Average input/output tokens
        - Latency percentiles (p50, p95)
        - Success rates
-    4. Providing insights about agent performance and identifying bottlenecks
+    5. Providing insights about agent performance and identifying bottlenecks
     
     When users ask about agent usage:
-    1. Use the get_agent_usage tool to query the mcp-agent-inventory MCP server
-    2. By default, query for the "retriever" agent, but support other agents too
-    3. The server provides data from /local/agents/{agent_id}/usage endpoint
-    4. Present the results clearly, including:
+    1. Use the get_agent_usage tool to query the mcp-agent-inventory MCP server for a specific agent
+    2. Use the get_all_agents_usage tool to get a comprehensive report for ALL agents
+    3. Present the results clearly, including:
        - Total runs and failures
        - Success rate percentage
        - Average token usage (input and output)
        - Latency metrics (p50, p95)
-    5. Provide helpful analysis of the metrics
+    4. Provide helpful analysis of the metrics
     
     When users ask to list agents:
     1. Use the list_agents tool to get all available local agents
@@ -275,7 +325,7 @@ root_agent = Agent(
     
     Always be helpful, clear, and concise. Format statistics in a readable way with proper units.
     """,
-    tools=[get_agent_usage, list_agents, check_agent_inventory_health]
+    tools=[get_agent_usage, get_all_agents_usage, list_agents, check_agent_inventory_health]
 )
 
 

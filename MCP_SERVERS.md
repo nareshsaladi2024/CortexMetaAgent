@@ -240,7 +240,7 @@ For inputs/outputs > 200k tokens, higher tier pricing applies automatically.
 ```bash
 MCP_TOKENSTATS_URL=http://localhost:8000  # Default
 PORT=8000  # Server port
-GOOGLE_API_KEY=AIzaSyAaPeS-PaJ0UGRG6vAMuSoa5joAOpdQ5O8  # Required for token counting
+GOOGLE_API_KEY=your-google-api-key-here  # Required for token counting
 ```
 
 **Start Server:**
@@ -333,7 +333,7 @@ GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 
 # Gemini API (for mcp-tokenstats)
-GOOGLE_API_KEY=AIzaSyAaPeS-PaJ0UGRG6vAMuSoa5joAOpdQ5O8
+GOOGLE_API_KEY=your-google-api-key-here
 
 # MCP Server Ports (if different from defaults)
 PORT=8000  # For mcp-tokenstats

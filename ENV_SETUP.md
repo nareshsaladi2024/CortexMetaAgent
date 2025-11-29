@@ -62,11 +62,11 @@ GOOGLE_CLOUD_LOCATION=us-central1
 # Path to service account credentials JSON file
 # For local development, use relative path from project root
 # For Vertex AI, credentials are automatically available via service account
-GOOGLE_APPLICATION_CREDENTIALS=aiagent-capstoneproject-10beb4eeaf31.json
+GOOGLE_APPLICATION_CREDENTIALS=path/to/your-service-account.json
 
 # Google API Key for Gemini (used by mcp-tokenstats)
 # Get from: https://aistudio.google.com/app/apikey
-GOOGLE_API_KEY=AIzaSyAaPeS-PaJ0UGRG6vAMuSoa5joAOpdQ5O8
+GOOGLE_API_KEY=your-google-api-key-here
 
 # =============================================================================
 # MCP Server Ports (for running servers locally)

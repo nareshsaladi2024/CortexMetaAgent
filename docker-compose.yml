@@ -1,0 +1,101 @@
+services:
+  # CortexMetaAgent - Main Meta Agent
+  cortex-meta-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortex-meta-agent:latest
+    container_name: cortex-meta-agent
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-aiagent-capstoneproject}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-1}
+      - ADK_LOG_LEVEL=${ADK_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./agents/CortexMetaAgent/.env:/app/agents/CortexMetaAgent/.env:ro
+      - ./.env:/app/.env:ro
+      - ./service_account.json:/app/service_account.json:ro
+    command: ["python", "agents/CortexMetaAgent/agent.py"]
+    restart: unless-stopped
+
+  # AutoEvalAgent
+  auto-eval-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortex-meta-agent:latest
+    container_name: cortex-auto-eval-agent
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-aiagent-capstoneproject}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-1}
+      - ADK_LOG_LEVEL=${ADK_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./agents/AutoEvalAgent/.env:/app/agents/AutoEvalAgent/.env:ro
+      - ./.env:/app/.env:ro
+      - ./service_account.json:/app/service_account.json:ro
+    command: ["python", "agents/AutoEvalAgent/agent.py"]
+    restart: unless-stopped
+
+  # MetricsAgent
+  metrics-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortex-meta-agent:latest
+    container_name: cortex-metrics-agent
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-aiagent-capstoneproject}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-1}
+      - ADK_LOG_LEVEL=${ADK_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./agents/MetricsAgent/.env:/app/agents/MetricsAgent/.env:ro
+      - ./.env:/app/.env:ro
+      - ./service_account.json:/app/service_account.json:ro
+    command: ["python", "agents/MetricsAgent/agent.py"]
+    restart: unless-stopped
+
+  # ReasoningCostAgent
+  reasoning-cost-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortex-meta-agent:latest
+    container_name: cortex-reasoning-cost-agent
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-aiagent-capstoneproject}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-1}
+      - ADK_LOG_LEVEL=${ADK_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./agents/ReasoningCostAgent/.env:/app/agents/ReasoningCostAgent/.env:ro
+      - ./.env:/app/.env:ro
+      - ./service_account.json:/app/service_account.json:ro
+    command: ["python", "agents/ReasoningCostAgent/agent.py"]
+    restart: unless-stopped
+
+  # TokenCostAgent
+  token-cost-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortex-meta-agent:latest
+    container_name: cortex-token-cost-agent
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-aiagent-capstoneproject}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/service_account.json}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-1}
+      - ADK_LOG_LEVEL=${ADK_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./agents/TokenCostAgent/.env:/app/agents/TokenCostAgent/.env:ro
+      - ./.env:/app/.env:ro
+      - ./service_account.json:/app/service_account.json:ro
+    command: ["python", "agents/TokenCostAgent/agent.py"]
+    restart: unless-stopped
+

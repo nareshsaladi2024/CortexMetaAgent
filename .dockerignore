@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+**/logs/
+
+# Documentation
+*.md
+!README.md
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Diagrams
+*.mmd
+
+# PowerShell scripts
+*.ps1
+
+# Test files
+test_*.py
+*_test.py
+
+# Environment files (will be mounted as volumes)
+.env
+.env.local
+

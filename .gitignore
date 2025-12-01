@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+
+# Google Cloud Service Account credentials (NEVER commit these!)
+*-*.json
+*service-account*.json
+service_account*.json
+service_account copy.json
+*credentials*.json
+aiagent-*.json
+*.key
+*.pem
+*.p12
+
+# Agent Engine config files (may contain sensitive info)
+.agent_engine_config.json
+**/.agent_engine_config.json
+
+# Environment backup files
+*.env.backup
+.env.backup
+**/.env.backup
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Exclude all markdown files except project descriptions and Capstone docs
+*.md
+!PROJECT_DESCRIPTION.md
+!README.md
+!CAPSTONE.md
+!CAPSTONE_PROJECT.md
+

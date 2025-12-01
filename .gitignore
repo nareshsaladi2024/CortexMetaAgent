@@ -19,12 +19,22 @@ build/
 # Google Cloud Service Account credentials (NEVER commit these!)
 *-*.json
 *service-account*.json
-service_account.json
+service_account*.json
+service_account copy.json
 *credentials*.json
 aiagent-*.json
 *.key
 *.pem
 *.p12
+
+# Agent Engine config files (may contain sensitive info)
+.agent_engine_config.json
+**/.agent_engine_config.json
+
+# Environment backup files
+*.env.backup
+.env.backup
+**/.env.backup
 
 # IDE
 .vscode/

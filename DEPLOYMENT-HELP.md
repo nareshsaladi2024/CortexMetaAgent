@@ -7,7 +7,7 @@
 **Missing agents:**
 - `ReasoningCostAgent`
 - `MetricsAgent`
-- `TokenCostAgent`
+
 - `AutoEvalAgent`
 
 This means **the new agents were NOT successfully deployed**.

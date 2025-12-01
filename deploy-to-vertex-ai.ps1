@@ -69,7 +69,6 @@ Write-Host ""
 
 # Get Cloud Run URLs for MCP servers
 Write-Host "Getting Cloud Run service URLs..." -ForegroundColor Cyan
-$mcpTokenstatsUrl = ""
 $mcpAgentInventoryUrl = ""
 $mcpReasoningCostUrl = ""
 
@@ -78,10 +77,7 @@ try {
     if ($LASTEXITCODE -eq 0) {
         $services | ForEach-Object {
             $parts = $_ -split "`t"
-            if ($parts[0] -eq "mcp-tokenstats") { 
-                $mcpTokenstatsUrl = $parts[1]
-                Write-Host "  [OK] mcp-tokenstats: $mcpTokenstatsUrl" -ForegroundColor Green
-            }
+
             if ($parts[0] -eq "mcp-agent-inventory") { 
                 $mcpAgentInventoryUrl = $parts[1]
                 Write-Host "  [OK] mcp-agent-inventory: $mcpAgentInventoryUrl" -ForegroundColor Green
@@ -97,10 +93,7 @@ try {
 }
 
 # Use defaults if not found
-if (-not $mcpTokenstatsUrl) { 
-    $mcpTokenstatsUrl = "https://mcp-tokenstats-eqww7tb4kq-uc.a.run.app"
-    Write-Host "  [WARNING] Using default URL for mcp-tokenstats: $mcpTokenstatsUrl" -ForegroundColor Yellow
-}
+
 if (-not $mcpAgentInventoryUrl) { 
     $mcpAgentInventoryUrl = "https://mcp-agent-inventory-eqww7tb4kq-uc.a.run.app"
     Write-Host "  [WARNING] Using default URL for mcp-agent-inventory: $mcpAgentInventoryUrl" -ForegroundColor Yellow
@@ -151,7 +144,7 @@ $envContent = @(
     "# MCP Server URLs (Cloud Run - for Vertex AI deployment)",
     "# =============================================================================",
     "",
-    "MCP_TOKENSTATS_URL=$mcpTokenstatsUrl",
+
     "MCP_AGENT_INVENTORY_URL=$mcpAgentInventoryUrl",
     "MCP_REASONING_COST_URL=$mcpReasoningCostUrl",
     "",
@@ -168,7 +161,7 @@ $envContent = @(
     "# MCP Server Ports (for local development only)",
     "# =============================================================================",
     "",
-    "PORT_TOKENSTATS=8000",
+
     "PORT_AGENT_INVENTORY=8001",
     "PORT_REASONING_COST=8002"
 )
@@ -233,7 +226,7 @@ Write-Host ""
 $agents = @(
     @{Name="ReasoningCostAgent"; Dir="agents\ReasoningCostAgent"; Config=".agent_engine_config.json"},
     @{Name="MetricsAgent"; Dir="agents\MetricsAgent"; Config=".agent_engine_config.json"},
-    @{Name="TokenCostAgent"; Dir="agents\TokenCostAgent"; Config=".agent_engine_config.json"},
+
     @{Name="AutoEvalAgent"; Dir="agents\AutoEvalAgent"; Config=".agent_engine_config.json"}
 )
 
@@ -243,7 +236,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Project: $ProjectId" -ForegroundColor White
 Write-Host "Region: $Region" -ForegroundColor White
 Write-Host "MCP URLs:" -ForegroundColor White
-Write-Host "  TokenStats: $mcpTokenstatsUrl" -ForegroundColor Gray
+
 Write-Host "  Agent Inventory: $mcpAgentInventoryUrl" -ForegroundColor Gray
 Write-Host "  Reasoning Cost: $mcpReasoningCostUrl" -ForegroundColor Gray
 Write-Host ""
@@ -328,7 +321,7 @@ foreach ($agent in $agents) {
             try {
                 # Build environment variable string
                 $envVars = @(
-                    "MCP_TOKENSTATS_URL=$mcpTokenstatsUrl",
+
                     "MCP_AGENT_INVENTORY_URL=$mcpAgentInventoryUrl",
                     "MCP_REASONING_COST_URL=$mcpReasoningCostUrl",
                     "GOOGLE_CLOUD_PROJECT=$ProjectId",
@@ -393,7 +386,7 @@ if ($failureCount -eq 0) {
     Write-Host "All agents deployed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Environment Variables Set:" -ForegroundColor Cyan
-    Write-Host "  MCP_TOKENSTATS_URL: $mcpTokenstatsUrl" -ForegroundColor White
+
     Write-Host "  MCP_AGENT_INVENTORY_URL: $mcpAgentInventoryUrl" -ForegroundColor White
     Write-Host "  MCP_REASONING_COST_URL: $mcpReasoningCostUrl" -ForegroundColor White
     Write-Host ""

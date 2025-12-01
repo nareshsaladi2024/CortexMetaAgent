@@ -1,6 +1,6 @@
 # PowerShell script to deploy all CortexMetaAgent agents using Application Default Credentials (ADC)
 # Uses your user account credentials (from gcloud auth)
-# Deploys: ReasoningCostAgent, MetricsAgent, TokenCostAgent, AutoEvalAgent
+# Deploys: ReasoningCostAgent, MetricsAgent, AutoEvalAgent
 
 # ADK requires deployment from the project root (C:\AI Agents\CortexMetaAgent)
 $projectRoot = "C:\AI Agents\CortexMetaAgent"
@@ -11,7 +11,7 @@ $agentsDir = "agents"
 $agents = @(
     @{Name="ReasoningCostAgent"; Dir="$agentsDir\ReasoningCostAgent"; Config="$agentsDir\ReasoningCostAgent\.agent_engine_config.json"; AgentId="ReasoningCostAgent"},
     @{Name="MetricsAgent"; Dir="$agentsDir\MetricsAgent"; Config="$agentsDir\MetricsAgent\.agent_engine_config.json"; AgentId="MetricsAgent"},
-    @{Name="TokenCostAgent"; Dir="$agentsDir\TokenCostAgent"; Config="$agentsDir\TokenCostAgent\.agent_engine_config.json"; AgentId="TokenCostAgent"},
+
     @{Name="AutoEvalAgent"; Dir="$agentsDir\AutoEvalAgent"; Config="$agentsDir\AutoEvalAgent\.agent_engine_config.json"; AgentId="AutoEvalAgent"}
 )
 

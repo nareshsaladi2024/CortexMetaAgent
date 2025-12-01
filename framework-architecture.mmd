@@ -9,13 +9,13 @@ graph TB
         M1[MetricsAgent<br/>Inventory & Usage]
         A1[AutoEvalAgent<br/>Eval Generation & Regression]
         R1[ReasoningCostAgent<br/>Reasoning Cost]
-        C1[TokenCostAgent<br/>Token Cost]
+
         META[CortexMetaAgent<br/>Coordinator / Orchestrator]
     end
 
     subgraph "MCP / Infra Layer"
         S1[mcp-agent-inventory<br/>Agent metadata & usage]
-        S2[mcp-tokenstats<br/>Token stats & cost]
+
         S3[mcp-reasoning-cost<br/>Reasoning cost service]
     end
 

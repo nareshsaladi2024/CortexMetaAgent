@@ -1,6 +1,6 @@
 graph TB
     subgraph "MCP Server Layer"
-        MCP1[mcp-tokenstats<br/>:8000<br/>Token Counting & Cost]
+
         MCP2[mcp-agent-inventory<br/>:8001<br/>Agent Metadata & Usage]
         MCP3[mcp-reasoning-cost<br/>:8002<br/>Reasoning Cost Estimation]
     end
@@ -8,8 +8,8 @@ graph TB
     subgraph "Agent Layer - MCP Integration"
         A1[MetricsAgent<br/>↔ mcp-agent-inventory<br/>Query local & deployed agents]
         A2[ReasoningCostAgent<br/>↔ mcp-reasoning-cost<br/>Validate reasoning chains]
-        A3[TokenCostAgent<br/>↔ mcp-tokenstats<br/>Calculate token costs]
-        A4[AutoEvalAgent<br/>↔ mcp-agent-inventory<br/>↔ mcp-tokenstats<br/>List agents & validate limits]
+
+        A4[AutoEvalAgent<br/>↔ mcp-agent-inventory<br/>List agents]
     end
     
     subgraph "Orchestrator Layer"

@@ -24,7 +24,7 @@ auto_eval_agent = Agent(
 
 **Pros:**
 - Simple and straightforward
-- Widely used (MetricsAgent, TokenCostAgent, ReasoningCostAgent all use it)
+- Widely used (MetricsAgent, ReasoningCostAgent all use it)
 - Flexible and well-tested
 
 **Cons:**
@@ -56,7 +56,7 @@ auto_eval_agent = Agent(
 ### Option 1: Keep `Agent` (Recommended)
 **Best for**: Current use case
 - AutoEvalAgent uses tools but doesn't need ToolContext for state management
-- Consistent with other agents in CortexMetaAgent (MetricsAgent, TokenCostAgent, etc.)
+- Consistent with other agents in CortexMetaAgent (MetricsAgent, etc.)
 - Simple and proven to work
 
 ### Option 2: Switch to `LlmAgent`

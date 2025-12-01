@@ -197,7 +197,7 @@ If you see credential errors:
 ## Related
 
 - ReasoningCost MCP Server: `../../mcp-servers/mcp-reasoning-cost/`
-- TokenCostAgent: `../TokenCostAgent/`
+
 - Google ADK Documentation: https://github.com/google/generative-ai-python
 
 ## License

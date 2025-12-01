@@ -24,8 +24,8 @@ echo ===========================================================================
 echo CortexMetaAgent Capstone Project - Command Menu
 echo ============================================================================
 echo.
-echo 1. Deploy All Agents (ReasoningCostAgent, MetricsAgent, TokenCostAgent, AutoEvalAgent)
-echo 2. Start All MCP Servers (TokenStats, AgentInventory, ReasoningCost)
+echo 1. Deploy All Agents (ReasoningCostAgent, MetricsAgent, AutoEvalAgent)
+echo 2. Start All MCP Servers (AgentInventory, ReasoningCost)
 echo 3. Test All MCP Servers
 echo 4. Run Workflow Orchestrator
 echo 5. Show Configuration
@@ -79,18 +79,14 @@ echo ===========================================================================
 echo Starting All MCP Servers
 echo ============================================================================
 echo.
-echo This will start 3 MCP servers in separate windows:
-echo   - mcp-tokenstats (Port 8000)
+echo This will start 2 MCP servers in separate windows:
 echo   - mcp-agent-inventory (Port 8001)
 echo   - mcp-reasoning-cost (Port 8002)
 echo.
 set /p confirm="Start all MCP servers? (y/n): "
 if /i not "%confirm%"=="y" goto MENU
 
-cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats"
-start "MCP-TokenStats (8000)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
 
-timeout /t 2 /nobreak >nul
 
 cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory"
 start "MCP-AgentInventory (8001)" cmd /k powershell -ExecutionPolicy Bypass -File run-server.ps1
@@ -118,10 +114,7 @@ echo Testing All MCP Servers
 echo ============================================================================
 echo.
 
-cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats"
-echo Testing mcp-tokenstats (Port 8000)...
-powershell -ExecutionPolicy Bypass -File test_tokenize.ps1
-echo.
+
 
 cd /d "C:\AI Agents\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory"
 echo Testing mcp-agent-inventory (Port 8001)...
@@ -171,11 +164,11 @@ echo.
 echo Agents to Deploy:
 echo   1. ReasoningCostAgent
 echo   2. MetricsAgent
-echo   3. TokenCostAgent
-echo   4. AutoEvalAgent
+
+echo   3. AutoEvalAgent
 echo.
 echo MCP Servers:
-echo   - mcp-tokenstats (Port 8000)
+
 echo   - mcp-agent-inventory (Port 8001)
 echo   - mcp-reasoning-cost (Port 8002)
 echo.

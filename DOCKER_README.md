@@ -9,7 +9,7 @@ CortexMetaAgent consists of 5 agents:
 - **AutoEvalAgent**: Automated evaluation agent
 - **MetricsAgent**: Metrics collection agent
 - **ReasoningCostAgent**: Reasoning cost analysis agent
-- **TokenCostAgent**: Token cost analysis agent
+
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ All agents share the same base image (`cortex-meta-agent:latest`) but run as sep
 2. **cortex-auto-eval-agent** - AutoEvalAgent
 3. **cortex-metrics-agent** - MetricsAgent
 4. **cortex-reasoning-cost-agent** - ReasoningCostAgent
-5. **cortex-token-cost-agent** - TokenCostAgent
+
 
 ## Environment Variables
 
@@ -113,4 +113,6 @@ docker build -t cortex-meta-agent:latest -f Dockerfile .
 - `.env` file is mounted as read-only volume
 - Service account JSON is mounted for authentication
 - Agents don't expose ports (run as background services)
+
+
 

@@ -207,7 +207,7 @@ If you see credential errors:
 ## Related
 
 - AgentInventory MCP Server: `../../mcp-servers/mcp-agent-inventory/`
-- TokenCostAgent: `../TokenCostAgent/`
+
 - ReasoningCostAgent: `../ReasoningCostAgent/`
 - Google ADK Documentation: https://github.com/google/generative-ai-python
 

@@ -10,7 +10,7 @@ $agentsDir = "agents"
 $agents = @(
     @{Name="ReasoningCostAgent"; Dir="$agentsDir\ReasoningCostAgent"; Config=".agent_engine_config.json"; AgentId="ReasoningCostAgent"},
     @{Name="MetricsAgent"; Dir="$agentsDir\MetricsAgent"; Config=".agent_engine_config.json"; AgentId="MetricsAgent"},
-    @{Name="TokenCostAgent"; Dir="$agentsDir\TokenCostAgent"; Config=".agent_engine_config.json"; AgentId="TokenCostAgent"},
+
     @{Name="AutoEvalAgent"; Dir="$agentsDir\AutoEvalAgent"; Config=".agent_engine_config.json"; AgentId="AutoEvalAgent"}
 )
 

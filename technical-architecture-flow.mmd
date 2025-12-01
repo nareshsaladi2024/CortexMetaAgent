@@ -3,7 +3,7 @@ sequenceDiagram
     participant Orchestrator
     participant MetricsAgent
     participant AgentInventory
-    participant TokenCostAgent
+
     participant TokenStats
     participant AutoEvalAgent
     participant Evaluator
@@ -15,11 +15,7 @@ sequenceDiagram
     AgentInventory-->>MetricsAgent: Agent metadata with tokens
     MetricsAgent-->>Orchestrator: Agent list with usage stats
     
-    Note over Orchestrator,TokenCostAgent: Real-Time Cost Tracking
-    Orchestrator->>TokenCostAgent: get_token_cost_realtime(agent_id, input_tokens, output_tokens)
-    TokenCostAgent->>TokenStats: POST /tokenize (calculate_cost_from_counts)
-    TokenStats-->>TokenCostAgent: USD cost breakdown
-    TokenCostAgent-->>Orchestrator: Token costs (input_cost_usd, output_cost_usd, total_cost_usd)
+
     
     Orchestrator->>Orchestrator: Compare with cache
     

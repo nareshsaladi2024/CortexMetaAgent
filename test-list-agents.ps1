@@ -60,7 +60,7 @@ try {
         }
         
         # Check for expected agents by displayName (ADK uses displayName for agent identification)
-        $expectedDisplayNames = @("ReasoningCostAgent", "MetricsAgent", "TokenCostAgent", "AutoEvalAgent", "sample_agent")
+        $expectedDisplayNames = @("ReasoningCostAgent", "MetricsAgent", "AutoEvalAgent", "sample_agent")
         Write-Host "Expected agent display names: $($expectedDisplayNames -join ', ')" -ForegroundColor Yellow
         Write-Host "Found agent display names: $($foundDisplayNames -join ', ')" -ForegroundColor Yellow
         Write-Host "Found agent IDs (numeric): $($foundAgents -join ', ')" -ForegroundColor Cyan

@@ -1,8 +1,8 @@
-# PowerShell script to deploy TokenCostAgent using Application Default Credentials (ADC)
+# PowerShell script to deploy AutoEvalAgent using Application Default Credentials (ADC)
 # Uses your user account credentials (from gcloud auth)
-# Run this script from the TokenCostAgent directory
+# Run this script from the AutoEvalAgent directory
 
-$agentName = "TokenCostAgent"
+$agentName = "AutoEvalAgent"
 $agentDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent (Split-Path -Parent $agentDir)
 
@@ -91,7 +91,7 @@ if (-not (Test-Path ".agent_engine_config.json")) {
 }
 
 # Deploy using ADK
-# ADK automatically uses agent.name from agent.py (should be "TokenCostAgent")
+# ADK automatically uses agent.name from agent.py (should be "AutoEvalAgent")
 Write-Host "Running deployment command..." -ForegroundColor Green
 Write-Host ""
 adk deploy agent_engine --project=$projectId --region=$region . --agent_engine_config_file=.agent_engine_config.json

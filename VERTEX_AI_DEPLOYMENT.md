@@ -37,7 +37,7 @@ Or with API key:
 
 Agents need these environment variables to connect to MCP servers:
 
-- `MCP_TOKENSTATS_URL` - URL of mcp-tokenstats Cloud Run service
+
 - `MCP_AGENT_INVENTORY_URL` - URL of mcp-agent-inventory Cloud Run service
 - `MCP_REASONING_COST_URL` - URL of mcp-reasoning-cost Cloud Run service
 - `GOOGLE_API_KEY` - Gemini API key for token counting
@@ -103,7 +103,7 @@ The script will:
 - Deploy all 4 agents:
   - ReasoningCostAgent
   - MetricsAgent
-  - TokenCostAgent
+
   - AutoEvalAgent
 
 ## Verifying Deployment
@@ -141,7 +141,7 @@ This should show the Cloud Run URLs.
 
 2. **Check MCP server URLs:**
    ```powershell
-   gcloud run services describe mcp-tokenstats --region us-central1 --format="value(status.url)"
+
    ```
 
 3. **Update .env file with correct URLs:**

@@ -65,7 +65,7 @@ try {
         Write-Host ""
         
         # Expected agents
-        $expectedAgents = @("ReasoningCostAgent", "MetricsAgent", "TokenCostAgent", "AutoEvalAgent")
+        $expectedAgents = @("ReasoningCostAgent", "MetricsAgent", "AutoEvalAgent")
         $foundDisplayNames = $response.reasoningEngines | ForEach-Object { $_.displayName }
         $missingAgents = $expectedAgents | Where-Object { $foundDisplayNames -notcontains $_ }
         

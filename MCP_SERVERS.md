@@ -4,11 +4,11 @@ This document describes the Model Control Protocol (MCP) server architecture, ag
 
 ## Overview
 
-The system uses three specialized MCP servers, each accessed by a corresponding agent:
+The system uses two specialized MCP servers, each accessed by a corresponding agent:
 
 - **mcp-agent-inventory** - Agent usage tracking and inventory management
 - **mcp-reasoning-cost** - Reasoning cost estimation and validation
-- **mcp-tokenstats** - Token counting and LLM cost calculation
+
 
 ## Agent → MCP Server Mapping
 
@@ -16,7 +16,7 @@ The system uses three specialized MCP servers, each accessed by a corresponding 
 |-------|-----------|---------------------|---------|
 | **MetricsAgent** | `mcp-agent-inventory` | `http://localhost:8001` | Retrieves agent usage statistics, metrics, and inventory |
 | **ReasoningCostAgent** | `mcp-reasoning-cost` | `http://localhost:8002` | Estimates reasoning costs and validates chains |
-| **TokenCostAgent** | `mcp-tokenstats` | `http://localhost:8000` | Calculates token counts and LLM costs |
+
 
 ## MCP Servers Details
 
@@ -171,101 +171,7 @@ result = estimate_reasoning_cost(
 
 ---
 
-### 3. mcp-tokenstats (`http://localhost:8000`)
 
-**Accessed by:** TokenCostAgent
-
-**Purpose:**
-- Count tokens using Gemini API
-- Calculate actual LLM costs in USD using official Gemini API pricing
-- Support multiple models with accurate pricing
-- Calculate costs from known token counts (without full prompt text)
-
-**Key Endpoints:**
-
-- `POST /tokenize` - Tokenize text and calculate costs
-- `GET /health` - Health check
-
-**Request Format:**
-```json
-{
-  "model": "gemini-2.5-flash",
-  "prompt": "Your text to tokenize here",
-  "generate": false,  // If true, makes actual API call to get real costs
-  "context_cache_tokens": 0,  // Optional - for context caching costs
-  "context_cache_storage_hours": 0.0  // Optional - for storage costs
-}
-```
-
-**Response Format:**
-```json
-{
-  "input_tokens": 45,
-  "estimated_output_tokens": 18,
-  "actual_output_tokens": null,  // Set if generate=true
-  "estimated_cost_usd": 0.0000165,
-  "actual_cost_usd": null,  // Set if generate=true
-  "input_cost_usd": 0.0000135,
-  "output_cost_usd": 0.000045,
-  "context_cache_cost_usd": null,
-  "model": "gemini-2.5-flash",
-  "pricing_tier": "standard",
-  "input_price_per_m": 0.30,
-  "output_price_per_m": 2.50,
-  "max_tokens_remaining": 1048531,
-  "compression_ratio": 0.4
-}
-```
-
-**Cost Calculation Formula:**
-```
-Cost = (input_tokens / 1,000,000) × input_price_per_1M + 
-       (output_tokens / 1,000,000) × output_price_per_1M + 
-       context_cache_storage_costs (if applicable)
-```
-
-**Supported Models & Pricing:**
-Based on official Gemini API pricing: https://ai.google.dev/gemini-api/docs/pricing
-
-- `gemini-2.5-pro`: $1.25/M input (≤200k), $2.50/M (>200k), $10.00/M output (≤200k), $15.00/M (>200k)
-- `gemini-2.5-flash`: $0.30/M input, $2.50/M output
-- `gemini-1.5-pro`: $1.25/M input (≤200k), $5.00/M output (≤200k)
-- `gemini-1.5-flash`: $0.075/M input, $0.30/M output
-- `gemini-1.5-flash-8b`: $0.0375/M input, $0.15/M output
-
-**Extended Pricing:**
-For inputs/outputs > 200k tokens, higher tier pricing applies automatically.
-
-**Environment Variables:**
-```bash
-MCP_TOKENSTATS_URL=http://localhost:8000  # Default
-PORT=8000  # Server port
-GOOGLE_API_KEY=your-google-api-key-here  # Required for token counting
-```
-
-**Start Server:**
-```powershell
-cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
-.\run-server.ps1
-```
-
-**Usage Example (via TokenCostAgent):**
-```python
-from agents.TokenCostAgent.agent import get_token_stats, calculate_token_cost_from_counts
-
-# Get token stats for a prompt
-stats = get_token_stats(
-    prompt="Your text here",
-    model="gemini-2.5-flash"
-)
-
-# Calculate cost from known token counts (direct cost calculation)
-cost = calculate_token_cost_from_counts(
-    input_tokens=500,
-    output_tokens=689,
-    model="gemini-2.5-pro"
-)
-```
 
 ---
 
@@ -284,25 +190,17 @@ The **Orchestrator** (`workflow/orchestrator.py`) coordinates all agents and the
         ┌───────────────────┼───────────────────┐
         │                   │                   │
         ▼                   ▼                   ▼
-┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│MetricsAgent │   │ReasoningCostAgent│   │TokenCostAgent│
-└──────────────┘   └──────────────┘   └──────────────┘
+│MetricsAgent │   │ReasoningCostAgent│
+└──────────────┘   └──────────────┘
         │                   │                   │
         ▼                   ▼                   ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│mcp-agent-      │ │mcp-reasoning-   │ │mcp-tokenstats   │
-│inventory       │ │cost             │ │                 │
-│:8001           │ │:8002            │ │:8000            │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
+│mcp-agent-      │ │mcp-reasoning-   │
+│inventory       │ │cost             │
+│:8001           │ │:8002            │
+└─────────────────┘ └─────────────────┘
 ```
 
-### Real-Time Cost Tracking
 
-When MetricsAgent pulls agent usage:
-1. **MetricsAgent** → calls `mcp-agent-inventory` → gets agent usage (input/output tokens)
-2. **Orchestrator** → calls `get_token_cost_realtime()` → calls **TokenCostAgent**
-3. **TokenCostAgent** → calls `mcp-tokenstats` → calculates actual USD cost
-4. Returns cost breakdown: `input_cost_usd`, `output_cost_usd`, `total_cost_usd`
 
 ## Configuration
 
@@ -325,31 +223,26 @@ AGENT_MODEL=gemini-2.5-flash-lite  # Default: fast, cost-effective
 # MCP Server URLs
 MCP_AGENT_INVENTORY_URL=http://localhost:8001
 MCP_REASONING_COST_URL=http://localhost:8002
-MCP_TOKENSTATS_URL=http://localhost:8000
+
 
 # Google Cloud Configuration
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 
-# Gemini API (for mcp-tokenstats)
-GOOGLE_API_KEY=your-google-api-key-here
+
 
 # MCP Server Ports (if different from defaults)
-PORT=8000  # For mcp-tokenstats
+
 PORT=8001  # For mcp-agent-inventory
 PORT=8002  # For mcp-reasoning-cost
 ```
 
-**Note**: All agents (ReasoningCostAgent, MetricsAgent, TokenCostAgent, Orchestrator, AutoEvalAgent) now use the `AGENT_MODEL` from `config.py` instead of hardcoded model names. You can change the model for all agents by setting `AGENT_MODEL` in your `.env` file.
+**Note**: All agents (ReasoningCostAgent, MetricsAgent, Orchestrator, AutoEvalAgent) now use the `AGENT_MODEL` from `config.py` instead of hardcoded model names. You can change the model for all agents by setting `AGENT_MODEL` in your `.env` file.
 
 ### Starting All MCP Servers
 
-**Terminal 1 - mcp-tokenstats:**
-```powershell
-cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
-.\run-server.ps1
-```
+
 
 **Terminal 2 - mcp-agent-inventory:**
 ```powershell
@@ -389,19 +282,7 @@ cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost
    - Queries: `GET /health`
    - Returns: Server health status
 
-### TokenCostAgent Tools
 
-1. **`get_token_stats(prompt, model)`**
-   - Queries: `POST /tokenize` with `generate=false` or `generate=true`
-   - Returns: Token counts, estimated/actual costs, pricing info
-
-2. **`calculate_token_cost_from_counts(input_tokens, output_tokens, model)`**
-   - Queries: `POST /tokenize` to get pricing, then calculates cost directly
-   - Returns: Cost breakdown (input_cost, output_cost, total_cost) in USD
-
-3. **`check_mcp_server_health()`**
-   - Queries: `GET /health`
-   - Returns: Server health status
 
 ## MCP Protocol Support
 
@@ -438,7 +319,7 @@ Each MCP server has its own test script:
 
 - `../CortexMetaAgent-MCPServers/mcp-servers/mcp-agent-inventory/test-agent-inventory.ps1`
 - `../CortexMetaAgent-MCPServers/mcp-servers/mcp-reasoning-cost/test-reasoning-cost.ps1`
-- `../CortexMetaAgent-MCPServers/mcp-servers/mcp-tokenstats/test_tokenize.ps1`
+
 
 **Run tests:**
 ```powershell
@@ -450,9 +331,7 @@ cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-agent-inventory
 cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-reasoning-cost
 .\test-reasoning-cost.ps1
 
-# Test mcp-tokenstats
-cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
-.\test_tokenize.ps1
+
 ```
 
 ## Architecture Benefits
@@ -474,12 +353,12 @@ cd ..\CortexMetaAgent-MCPServers\mcp-servers\mcp-tokenstats
 
 | Component | URL/Port | Purpose |
 |-----------|----------|---------|
-| mcp-tokenstats | `http://localhost:8000` | Token counting & LLM cost calculation |
+
 | mcp-agent-inventory | `http://localhost:8001` | Agent inventory & usage tracking |
 | mcp-reasoning-cost | `http://localhost:8002` | Reasoning cost estimation |
 | MetricsAgent | - | Queries mcp-agent-inventory |
 | ReasoningCostAgent | - | Queries mcp-reasoning-cost |
-| TokenCostAgent | - | Queries mcp-tokenstats |
+
 | Orchestrator | - | Coordinates all agents |
 
 ## Troubleshooting
@@ -491,7 +370,7 @@ If an agent reports connection errors:
 3. Check server logs for errors
 
 ### Authentication Issues
-- **mcp-tokenstats**: Requires `GOOGLE_API_KEY` for Gemini API
+
 - **mcp-agent-inventory**: Requires `GOOGLE_APPLICATION_CREDENTIALS` for GCP access
 - **mcp-reasoning-cost**: No authentication required (stateless calculations)
 

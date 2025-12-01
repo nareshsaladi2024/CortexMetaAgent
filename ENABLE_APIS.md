@@ -4,16 +4,7 @@ This guide lists all required Google Cloud APIs for the CortexMetaAgent project 
 
 ## Required APIs
 
-### 1. Generative Language API (Gemini)
-**Required for:** mcp-tokenstats server (token counting with Gemini)
 
-**Enable:**
-```powershell
-gcloud services enable generativelanguage.googleapis.com --project=aiagent-capstoneproject
-```
-
-**Or via Console:**
-https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview?project=1276251306
 
 ### 2. Vertex AI API
 **Required for:** Agent deployment and Reasoning Engine
@@ -51,7 +42,7 @@ gcloud services enable artifactregistry.googleapis.com --project=aiagent-capston
 
 ```powershell
 gcloud services enable `
-  generativelanguage.googleapis.com `
+
   aiplatform.googleapis.com `
   run.googleapis.com `
   cloudbuild.googleapis.com `
@@ -62,17 +53,12 @@ gcloud services enable `
 ## Verify APIs Are Enabled
 
 ```powershell
-gcloud services list --enabled --project=aiagent-capstoneproject --filter="name:(generativelanguage.googleapis.com OR aiplatform.googleapis.com OR run.googleapis.com OR cloudbuild.googleapis.com OR artifactregistry.googleapis.com)"
+gcloud services list --enabled --project=aiagent-capstoneproject --filter="name:(aiplatform.googleapis.com OR run.googleapis.com OR cloudbuild.googleapis.com OR artifactregistry.googleapis.com)"
 ```
 
 ## Common Errors
 
-### Error: "Generative Language API has not been used in project before or it is disabled"
 
-**Solution:**
-1. Enable the API using the command above
-2. Wait 2-5 minutes for the API to propagate
-3. Retry your request
 
 ### Error: "SERVICE_DISABLED"
 
@@ -90,7 +76,7 @@ After enabling an API, it may take 2-5 minutes for the change to propagate acros
 To check if an API is enabled:
 
 ```powershell
-gcloud services list --enabled --project=aiagent-capstoneproject --filter="name:generativelanguage.googleapis.com"
+gcloud services list --enabled --project=aiagent-capstoneproject --filter="name:aiplatform.googleapis.com"
 ```
 
 If the API is enabled, you'll see it in the list. If not, enable it using the commands above.

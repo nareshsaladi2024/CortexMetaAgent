@@ -40,12 +40,12 @@ AGENT_MODEL=gemini-2.5-flash-lite
 # Use localhost URLs for local development, Cloud Run URLs for Vertex AI deployment
 
 # Local Development (Docker Desktop)
-# MCP_TOKENSTATS_URL=http://localhost:8000
+
 # MCP_AGENT_INVENTORY_URL=http://localhost:8001
 # MCP_REASONING_COST_URL=http://localhost:8002
 
 # Cloud Run / Vertex AI Deployment (Production)
-MCP_TOKENSTATS_URL=https://mcp-tokenstats-eqww7tb4kq-uc.a.run.app
+
 MCP_AGENT_INVENTORY_URL=https://mcp-agent-inventory-eqww7tb4kq-uc.a.run.app
 MCP_REASONING_COST_URL=https://mcp-reasoning-cost-eqww7tb4kq-uc.a.run.app
 
@@ -64,16 +64,14 @@ GOOGLE_CLOUD_LOCATION=us-central1
 # For Vertex AI, credentials are automatically available via service account
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your-service-account.json
 
-# Google API Key for Gemini (used by mcp-tokenstats)
-# Get from: https://aistudio.google.com/app/apikey
-GOOGLE_API_KEY=your-google-api-key-here
+
 
 # =============================================================================
 # MCP Server Ports (for running servers locally)
 # =============================================================================
 # These are only used when running MCP servers locally, not for agents
 
-PORT_TOKENSTATS=8000
+
 PORT_AGENT_INVENTORY=8001
 PORT_REASONING_COST=8002
 ```
@@ -82,7 +80,7 @@ PORT_REASONING_COST=8002
 
 As of deployment, your MCP servers are available at:
 
-- **mcp-tokenstats**: `https://mcp-tokenstats-eqww7tb4kq-uc.a.run.app`
+
 - **mcp-agent-inventory**: `https://mcp-agent-inventory-eqww7tb4kq-uc.a.run.app`
 - **mcp-reasoning-cost**: `https://mcp-reasoning-cost-eqww7tb4kq-uc.a.run.app`
 
@@ -113,7 +111,7 @@ When deploying to Vertex AI, set environment variables:
 
 ```powershell
 # Get current Cloud Run URLs
-$tokenstatsUrl = gcloud run services describe mcp-tokenstats --region us-central1 --format="value(status.url)" --project aiagent-capstoneproject
+
 $agentInventoryUrl = gcloud run services describe mcp-agent-inventory --region us-central1 --format="value(status.url)" --project aiagent-capstoneproject
 $reasoningCostUrl = gcloud run services describe mcp-reasoning-cost --region us-central1 --format="value(status.url)" --project aiagent-capstoneproject
 
@@ -143,7 +141,7 @@ python config.py
 # Update .env file
 (Get-Content .env) -replace 'https://mcp-', 'http://localhost:' | Set-Content .env
 (Get-Content .env) -replace '-eqww7tb4kq-uc.a.run.app', '' | Set-Content .env
-(Get-Content .env) -replace 'MCP_TOKENSTATS_URL=http://localhost:', 'MCP_TOKENSTATS_URL=http://localhost:8000' | Set-Content .env
+
 (Get-Content .env) -replace 'MCP_AGENT_INVENTORY_URL=http://localhost:', 'MCP_AGENT_INVENTORY_URL=http://localhost:8001' | Set-Content .env
 (Get-Content .env) -replace 'MCP_REASONING_COST_URL=http://localhost:', 'MCP_REASONING_COST_URL=http://localhost:8002' | Set-Content .env
 
@@ -186,7 +184,7 @@ This will print all configuration values including MCP URLs.
 
 2. **Verify Cloud Run services are accessible:**
    ```powershell
-   Invoke-RestMethod -Uri "https://mcp-tokenstats-eqww7tb4kq-uc.a.run.app/health"
+
    ```
 
 3. **Check environment variables are loaded:**
@@ -194,7 +192,7 @@ This will print all configuration values including MCP URLs.
    import os
    from dotenv import load_dotenv
    load_dotenv()
-   print(os.environ.get("MCP_TOKENSTATS_URL"))
+
    ```
 
 ### URLs changed after redeployment

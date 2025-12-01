@@ -1,6 +1,6 @@
 """
 Workflow Orchestrator
-Uses Google ADK to coordinate multiple agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent) in parallel
+Uses Google ADK to coordinate multiple agents (MetricsAgent, ReasoningCostAgent) in parallel
 """
 
 from google.adk.agents import Agent
@@ -23,19 +23,14 @@ from datetime import datetime
 
 # Add parent directory to path to import agents and config
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from config import AGENT_MODEL, MCP_TOKENSTATS_URL, MCP_AGENT_INVENTORY_URL
+from config import AGENT_MODEL, MCP_AGENT_INVENTORY_URL
 
 # Import agents
 try:
     from agents.MetricsAgent.agent import root_agent as metrics_agent
     from agents.ReasoningCostAgent.agent import root_agent as reasoning_cost_agent
-    from agents.TokenCostAgent.agent import root_agent as token_cost_agent
-except ImportError as e:
-    print(f"Warning: Could not import agents: {e}")
-    print("Make sure all agents are properly installed")
     metrics_agent = None
     reasoning_cost_agent = None
-    token_cost_agent = None
 
 # Import AutoEvalAgent
 try:
@@ -65,78 +60,16 @@ vertexai.init(
 )
 
 
-def get_token_cost_realtime(agent_id: str, input_tokens: int, output_tokens: int, model: str = None) -> Dict[str, Any]:
-    """
-    Get real-time token cost for a specific agent using TokenCostAgent.
-    
-    TokenCostAgent calls mcp-tokenstats MCP server to calculate token costs.
-    
-    Args:
-        agent_id: Agent ID
-        input_tokens: Number of input tokens
-        output_tokens: Number of output tokens
-        model: Model name (default: gemini-2.5-flash)
-        
-    Returns:
-        dict: Token cost information
-    """
-    if token_cost_agent is None:
-        return {"status": "error", "error_message": "TokenCostAgent not available for cost calculation"}
-    
-    try:
-        # Import TokenCostAgent's calculate_token_cost_from_counts function
-        from agents.TokenCostAgent.agent import calculate_token_cost_from_counts
-        
-        # Call TokenCostAgent's function which calls mcp-tokenstats server
-        cost_result = calculate_token_cost_from_counts(
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            model=model
-        )
-        
-        # Add agent_id to the result
-        if cost_result.get("status") == "success":
-            cost_result["agent_id"] = agent_id
-            
-        return cost_result
-            
-    except ImportError:
-        # Fallback: TokenCostAgent not properly imported
-        # Try calling it via the agent's run method
-        try:
-            query = f"Calculate token cost for {input_tokens} input tokens and {output_tokens} output tokens using model {model}"
-            result = token_cost_agent.run(query)
-            
-            return {
-                "status": "success",
-                "agent_id": agent_id,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens,
-                "token_cost_response": str(result),
-                "note": "Cost calculated via TokenCostAgent calling mcp-tokenstats"
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "agent_id": agent_id,
-                "error_message": f"Failed to calculate token cost via TokenCostAgent: {str(e)}"
-            }
-    except Exception as e:
-        return {
-            "status": "error",
-            "agent_id": agent_id,
-            "error_message": f"Failed to calculate token cost: {str(e)}"
-        }
 
 
-def run_metrics_agent(query: str, include_token_costs: bool = True) -> Dict[str, Any]:
+
+def run_metrics_agent(query: str) -> Dict[str, Any]:
     """
-    Run the MetricsAgent and optionally get real-time token costs via TokenCostAgent
+    Run the MetricsAgent
     
     Args:
         query: Query string for the agent
-        include_token_costs: If True, get real-time token costs for agents found
+        query: Query string for the agent
         
     Returns:
         dict: Agent response with optional token cost information
@@ -157,88 +90,7 @@ def run_metrics_agent(query: str, include_token_costs: bool = True) -> Dict[str,
             "runtime_ms": round(runtime_ms, 2)
         }
         
-        # If include_token_costs is True, try to extract agent usage and calculate costs
-        if include_token_costs:
-            try:
-                # Try to extract agent_id from query (e.g., "What are the usage statistics for the {agent_id} agent?")
-                import re
-                agent_id_match = re.search(r'(?:for|agent)\s+([^\s]+)', query, re.IGNORECASE)
-                if agent_id_match:
-                    agent_id = agent_id_match.group(1).strip()
-                    
-                    # Get usage statistics directly from AgentInventory MCP
-                    mcp_url = MCP_AGENT_INVENTORY_URL
-                    usage_response = requests.get(
-                        f"{mcp_url}/local/agents/{agent_id}/usage",
-                        timeout=10
-                    )
-                    
-                    if usage_response.status_code == 200:
-                        usage_data = usage_response.json()
-                        avg_input_tokens = usage_data.get("avg_input_tokens")
-                        avg_output_tokens = usage_data.get("avg_output_tokens")
-                        
-                        if avg_input_tokens and avg_output_tokens:
-                            # Get real-time token cost for this agent
-                            token_cost = get_token_cost_realtime(
-                                agent_id=agent_id,
-                                input_tokens=int(avg_input_tokens),
-                                output_tokens=int(avg_output_tokens)
-                            )
-                            
-                            if token_cost.get("status") == "success":
-                                response_data["token_costs"] = {
-                                    agent_id: token_cost
-                                }
-                                response_data["total_cost_usd"] = token_cost.get("total_cost_usd", 0.0)
-                else:
-                    # Try to get all agents and calculate costs for each
-                    mcp_url = MCP_AGENT_INVENTORY_URL
-                    agents_response = requests.get(
-                        f"{mcp_url}/local/agents",
-                        timeout=10
-                    )
-                    
-                    if agents_response.status_code == 200:
-                        agents_data = agents_response.json()
-                        agents_list = agents_data.get("agents", [])
-                        
-                        token_costs = {}
-                        total_cost = 0.0
-                        
-                        for agent in agents_list:
-                            agent_id = agent.get("id")
-                            if agent_id:
-                                # Get usage for this agent
-                                usage_response = requests.get(
-                                    f"{mcp_url}/local/agents/{agent_id}/usage",
-                                    timeout=10
-                                )
-                                
-                                if usage_response.status_code == 200:
-                                    usage_data = usage_response.json()
-                                    avg_input_tokens = usage_data.get("avg_input_tokens")
-                                    avg_output_tokens = usage_data.get("avg_output_tokens")
-                                    
-                                    if avg_input_tokens and avg_output_tokens:
-                                        # Get real-time token cost
-                                        token_cost = get_token_cost_realtime(
-                                            agent_id=agent_id,
-                                            input_tokens=int(avg_input_tokens),
-                                            output_tokens=int(avg_output_tokens)
-                                        )
-                                        
-                                        if token_cost.get("status") == "success":
-                                            token_costs[agent_id] = token_cost
-                                            total_cost += token_cost.get("total_cost_usd", 0.0)
-                        
-                        if token_costs:
-                            response_data["token_costs"] = token_costs
-                            response_data["total_cost_usd"] = round(total_cost, 6)
-                            
-            except Exception as e:
-                # Don't fail the request if cost calculation fails
-                response_data["token_cost_error"] = str(e)
+
         
         return response_data
         
@@ -279,33 +131,7 @@ def run_reasoning_cost_agent(query: str) -> Dict[str, Any]:
         }
 
 
-def run_token_cost_agent(query: str) -> Dict[str, Any]:
-    """
-    Run the TokenCostAgent
-    
-    Args:
-        query: Query string for the agent
-        
-    Returns:
-        dict: Agent response
-    """
-    if token_cost_agent is None:
-        return {"status": "error", "error_message": "TokenCostAgent not available"}
-    
-    try:
-        result = token_cost_agent.run(query)
-        return {
-            "status": "success",
-            "agent": "TokenCostAgent",
-            "query": query,
-            "response": str(result)
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "agent": "TokenCostAgent",
-            "error_message": str(e)
-        }
+
 
 
 def run_agents_parallel(agent_queries: Dict[str, str]) -> Dict[str, Any]:
@@ -329,8 +155,7 @@ def run_agents_parallel(agent_queries: Dict[str, str]) -> Dict[str, Any]:
     # Map agent names to functions
     agent_functions = {
         "MetricsAgent": run_metrics_agent,
-        "ReasoningCostAgent": run_reasoning_cost_agent,
-        "TokenCostAgent": run_token_cost_agent
+        "ReasoningCostAgent": run_reasoning_cost_agent
     }
     
     # Execute agents in parallel
@@ -384,7 +209,6 @@ def orchestrate_workflow(workflow_type: str, **params) -> Dict[str, Any]:
             
             # Prepare queries for each agent
             agent_queries = {
-                "TokenCostAgent": f"Analyze the token usage for this text: '{text}'",
                 "MetricsAgent": f"What are the usage statistics for the {agent_id} agent?",
                 "ReasoningCostAgent": f"Extract actions from this text: '{text}'"
             }
@@ -412,20 +236,7 @@ def orchestrate_workflow(workflow_type: str, **params) -> Dict[str, Any]:
             results["steps"].append({"step": "parallel_agent_execution", "result": parallel_results})
             results["status"] = parallel_results.get("status", "success")
             
-        elif workflow_type == "text_analysis":
-            # Analyze text using TokenCostAgent and ReasoningCostAgent in parallel
-            text = params.get("text", "")
-            
-            # Prepare queries for parallel execution
-            agent_queries = {
-                "TokenCostAgent": f"Analyze the token usage for this text: '{text}'",
-                "ReasoningCostAgent": f"Extract actionable items from this text: '{text}'"
-            }
-            
-            # Run agents in parallel
-            parallel_results = run_agents_parallel(agent_queries)
-            results["steps"].append({"step": "parallel_agent_execution", "result": parallel_results})
-            results["status"] = parallel_results.get("status", "success")
+
             
         else:
             results["status"] = "error"
@@ -448,7 +259,6 @@ def check_all_agents() -> Dict[str, Any]:
     agent_status = {
         "MetricsAgent": {"available": metrics_agent is not None},
         "ReasoningCostAgent": {"available": reasoning_cost_agent is not None},
-        "TokenCostAgent": {"available": token_cost_agent is not None},
         "AutoEvalAgent": {"available": auto_eval_agent is not None}
     }
     
@@ -963,7 +773,7 @@ def signal_handler(signum, frame):
 orchestrator_agent = Agent(
     name="workflow_orchestrator",
     model=AGENT_MODEL,  # From global config (default: gemini-2.5-flash-lite)
-    description="An AI orchestrator that coordinates multiple agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent) in parallel for complex workflows.",
+    description="An AI orchestrator that coordinates multiple agents (MetricsAgent, ReasoningCostAgent) in parallel for complex workflows.",
     instruction="""
     You are a Workflow Orchestrator that coordinates multiple agents in parallel for complex workflows.
     You implement the REACT PATTERN (ReAct: Reasoning and Acting) to automatically monitor and respond to agent changes.
@@ -971,8 +781,8 @@ orchestrator_agent = Agent(
     Available Agents:
     1. **MetricsAgent**: Retrieves agent usage statistics and metrics from AgentInventory MCP
     2. **ReasoningCostAgent**: Extracts actions from reasoning chains and validates reasoning cost
-    3. **TokenCostAgent**: Analyzes token usage statistics and calculates costs from TokenStats MCP
-    4. **AutoEvalAgent**: Generates evaluation suites and runs regression tests for agents
+
+    3. **AutoEvalAgent**: Generates evaluation suites and runs regression tests for agents
     
     Your capabilities include:
     1. Orchestrating parallel execution of multiple agents
@@ -1021,7 +831,7 @@ orchestrator_agent = Agent(
     
     Available Workflows:
     1. **analyze_comprehensive**: Comprehensive analysis using all agents in parallel
-       - TokenCostAgent: Token usage analysis and cost calculation
+
        - MetricsAgent: Agent performance metrics
        - ReasoningCostAgent: Action extraction
     
@@ -1029,8 +839,8 @@ orchestrator_agent = Agent(
        - MetricsAgent: Usage statistics and metrics
        - ReasoningCostAgent: Reasoning validation and action extraction
     
-    3. **text_analysis**: Text analysis using TokenCostAgent and ReasoningCostAgent
-       - TokenCostAgent: Token statistics and cost calculation
+    3. **text_analysis**: Text analysis using ReasoningCostAgent
+       - ReasoningCostAgent: Action extraction
        - ReasoningCostAgent: Action extraction
     
     When orchestrating workflows:

@@ -16,7 +16,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install agent-specific requirements
-RUN for dir in agents/AutoEvalAgent agents/MetricsAgent agents/ReasoningCostAgent agents/TokenCostAgent; do \
+RUN for dir in agents/AutoEvalAgent agents/MetricsAgent agents/ReasoningCostAgent; do \
     if [ -f "$dir/requirements.txt" ]; then \
         pip install --no-cache-dir -r "$dir/requirements.txt"; \
     fi; \
@@ -38,4 +38,6 @@ EXPOSE 8000
 
 # Default command (can be overridden in docker-compose)
 CMD ["python", "-c", "print('CortexMetaAgent container ready. Use docker-compose to run specific agents.')"]
+
+
 

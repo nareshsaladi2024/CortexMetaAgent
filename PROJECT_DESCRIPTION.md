@@ -30,7 +30,7 @@ CortexMetaAgent automates the entire agent evaluation lifecycle through an integ
 
 At the heart of CortexMetaAgent is **CortexMetaAgent**, a unified coordinator that orchestrates multiple specialized agents in parallel and sequential patterns. Unlike traditional monitoring tools that focus on single metrics, CortexMetaAgent provides comprehensive cross-platform governance by:
 
-- **Unified Orchestration**: Coordinates MetricsAgent, AutoEvalAgent, ReasoningCostAgent, and TokenCostAgent in intelligent workflows
+- **Unified Orchestration**: Coordinates MetricsAgent, AutoEvalAgent, and ReasoningCostAgent in intelligent workflows
 - **Proactive Evaluation**: Automatically generates and extends test suites based on agent changes
 - **Cross-Platform Governance**: Works seamlessly with local agents, deployed agents (GCP Reasoning Engine), and MCP-based agents
 - **Intelligent Synthesis**: Correlates metrics, costs, and evaluation results into actionable insights
@@ -67,14 +67,14 @@ The system provides comprehensive cost visibility through integrated token and r
 - **Reasoning Cost Estimation**: Validates reasoning chains and estimates action costs
 - **Cost-Performance Correlation**: Links cost metrics with performance metrics for optimization insights
 
-When MetricsAgent retrieves agent usage statistics, the orchestrator automatically calls TokenCostAgent to calculate actual USD costs, providing complete cost breakdowns (input_cost_usd, output_cost_usd, total_cost_usd).
+
 
 #### 4. MCP Server Integration
 
 CortexMetaAgent integrates with Model Control Protocol (MCP) servers for centralized monitoring:
 
 - **MCP-AgentInventory**: Tracks agent metadata, usage statistics, and last run times for both local and deployed agents
-- **MCP-TokenStats**: Calculates token counts and actual USD costs using official pricing
+
 - **MCP-ReasoningCost**: Estimates reasoning costs based on chain-of-thought metrics
 
 Each specialized agent has a dedicated MCP server interface, ensuring optimal functionality and clear separation of concerns.
@@ -83,7 +83,7 @@ Each specialized agent has a dedicated MCP server interface, ensuring optimal fu
 
 The Workflow Orchestrator coordinates multiple agents in parallel for efficiency:
 
-- **Four Agents Working in Parallel**: MetricsAgent, ReasoningCostAgent, TokenCostAgent, and AutoEvalAgent execute simultaneously
+- **Three Agents Working in Parallel**: MetricsAgent, ReasoningCostAgent, and AutoEvalAgent execute simultaneously
 - **Results Synthesis**: Results from all agents are combined for comprehensive insights
 - **Robust Error Handling**: Partial failures don't block entire workflows
 
@@ -165,7 +165,7 @@ CortexMetaAgent follows a layered architecture:
 
 **MCP Servers Layer**: Microservices for agent inventory tracking, token statistics, and reasoning cost estimation
 
-**Agent Layer**: Four specialized agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) with dedicated MCP server interfaces
+**Agent Layer**: Three specialized agents (MetricsAgent, ReasoningCostAgent, AutoEvalAgent) with dedicated MCP server interfaces
 
 **Orchestrator Layer**: Workflow Orchestrator implementing React pattern, scheduler for periodic monitoring, and config manager supporting YAML/CLI/Env configuration
 

@@ -38,7 +38,7 @@ Set-Location $ScriptDir
 if ($ShowCurrent) {
     Write-Host "Current Environment Variables:" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "MCP_TOKENSTATS_URL: $(if ($env:MCP_TOKENSTATS_URL) { $env:MCP_TOKENSTATS_URL } else { 'NOT SET' })" -ForegroundColor $(if ($env:MCP_TOKENSTATS_URL) { "Green" } else { "Yellow" })
+
     Write-Host "MCP_AGENT_INVENTORY_URL: $(if ($env:MCP_AGENT_INVENTORY_URL) { $env:MCP_AGENT_INVENTORY_URL } else { 'NOT SET' })" -ForegroundColor $(if ($env:MCP_AGENT_INVENTORY_URL) { "Green" } else { "Yellow" })
     Write-Host "MCP_REASONING_COST_URL: $(if ($env:MCP_REASONING_COST_URL) { $env:MCP_REASONING_COST_URL } else { 'NOT SET' })" -ForegroundColor $(if ($env:MCP_REASONING_COST_URL) { "Green" } else { "Yellow" })
     Write-Host "GOOGLE_CLOUD_PROJECT: $(if ($env:GOOGLE_CLOUD_PROJECT) { $env:GOOGLE_CLOUD_PROJECT } else { 'NOT SET' })" -ForegroundColor $(if ($env:GOOGLE_CLOUD_PROJECT) { "Green" } else { "Yellow" })
@@ -55,7 +55,7 @@ if ($ShowCurrent) {
 
 # Get Cloud Run URLs
 Write-Host "Getting Cloud Run service URLs..." -ForegroundColor Cyan
-$tokenstatsUrl = ""
+
 $agentInventoryUrl = ""
 $reasoningCostUrl = ""
 
@@ -64,7 +64,7 @@ try {
     if ($LASTEXITCODE -eq 0) {
         $services | ForEach-Object {
             $parts = $_ -split "`t"
-            if ($parts[0] -eq "mcp-tokenstats") { $tokenstatsUrl = $parts[1] }
+
             if ($parts[0] -eq "mcp-agent-inventory") { $agentInventoryUrl = $parts[1] }
             if ($parts[0] -eq "mcp-reasoning-cost") { $reasoningCostUrl = $parts[1] }
         }
@@ -74,7 +74,7 @@ try {
 }
 
 # Set defaults if not retrieved
-if (-not $tokenstatsUrl) { $tokenstatsUrl = "https://mcp-tokenstats-eqww7tb4kq-uc.a.run.app" }
+
 if (-not $agentInventoryUrl) { $agentInventoryUrl = "https://mcp-agent-inventory-eqww7tb4kq-uc.a.run.app" }
 if (-not $reasoningCostUrl) { $reasoningCostUrl = "https://mcp-reasoning-cost-eqww7tb4kq-uc.a.run.app" }
 
@@ -101,12 +101,12 @@ if (-not $apiKey) {
 
 # Set MCP URLs based on environment
 if ($Environment -eq "local") {
-    $mcpTokenstatsUrl = "http://localhost:8000"
+
     $mcpAgentInventoryUrl = "http://localhost:8001"
     $mcpReasoningCostUrl = "http://localhost:8002"
     Write-Host "Configuring for LOCAL development" -ForegroundColor Cyan
 } else {
-    $mcpTokenstatsUrl = $tokenstatsUrl
+
     $mcpAgentInventoryUrl = $agentInventoryUrl
     $mcpReasoningCostUrl = $reasoningCostUrl
     Write-Host "Configuring for CLOUD RUN / Vertex AI deployment" -ForegroundColor Cyan
@@ -129,7 +129,7 @@ $envContent = @(
     "# =============================================================================",
     "# Environment: $Environment",
     "",
-    "MCP_TOKENSTATS_URL=$mcpTokenstatsUrl",
+
     "MCP_AGENT_INVENTORY_URL=$mcpAgentInventoryUrl",
     "MCP_REASONING_COST_URL=$mcpReasoningCostUrl",
     "",
@@ -146,7 +146,7 @@ $envContent = @(
     "# MCP Server Ports (for running servers locally)",
     "# =============================================================================",
     "",
-    "PORT_TOKENSTATS=8000",
+
     "PORT_AGENT_INVENTORY=8001",
     "PORT_REASONING_COST=8002"
 )
@@ -160,7 +160,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Configuration:" -ForegroundColor Cyan
 Write-Host "  Environment: $Environment" -ForegroundColor White
-Write-Host "  MCP TokenStats URL: $mcpTokenstatsUrl" -ForegroundColor White
+
 Write-Host "  MCP Agent Inventory URL: $mcpAgentInventoryUrl" -ForegroundColor White
 Write-Host "  MCP Reasoning Cost URL: $mcpReasoningCostUrl" -ForegroundColor White
 Write-Host ""

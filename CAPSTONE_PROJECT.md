@@ -12,7 +12,7 @@ CortexMetaAgent is a comprehensive automated evaluation and testing framework fo
 - **Workflow Orchestrator**: Coordinates multiple agents in parallel and implements React pattern for automatic monitoring
 - **AutoEvalAgent**: Dynamically generates evaluation test suites (positive, negative, adversarial, stress) using LLM
 - **MCP Servers**: Microservices for agent inventory tracking, token statistics, and reasoning cost estimation
-- **Agent Ecosystem**: Four specialized agents (MetricsAgent, ReasoningCostAgent, TokenCostAgent, AutoEvalAgent) working in parallel with dedicated MCP server interfaces, all orchestrated by CortexMetaAgent
+- **Agent Ecosystem**: Three specialized agents (MetricsAgent, ReasoningCostAgent, AutoEvalAgent) working in parallel with dedicated MCP server interfaces, all orchestrated by CortexMetaAgent
 
 ### Architecture
 
@@ -110,10 +110,7 @@ CortexMetaAgent addresses these challenges through an integrated system that aut
   - **Accessed by**: MetricsAgent
   - **Endpoints**: `/local/agents`, `/deployed/agents`, `/local/agents/{id}/usage`, `/deployed/agents/{id}/usage`
   - **Integration**: MetricsAgent queries both local (in-memory) and deployed (GCP Reasoning Engine) agents
-- **MCP-TokenStats** (`http://localhost:8000`): Calculates token counts and actual USD costs using official Gemini API pricing
-  - **Accessed by**: TokenCostAgent
-  - **Capabilities**: Token counting, cost calculation from token counts, extended pricing tier support
-  - **Integration**: TokenCostAgent provides real-time token cost calculations for orchestrator
+
 - **MCP-ReasoningCost** (`http://localhost:8002`): Estimates reasoning costs based on chain-of-thought metrics
   - **Accessed by**: ReasoningCostAgent
   - **Capabilities**: Relative cost scoring, actual USD cost calculation when tokens provided, runaway detection
@@ -124,21 +121,14 @@ CortexMetaAgent addresses these challenges through an integrated system that aut
 |-------|-----------|----------------|
 | **MetricsAgent** | `mcp-agent-inventory` | Retrieve agent usage statistics, metrics, and inventory |
 | **ReasoningCostAgent** | `mcp-reasoning-cost` | Estimate reasoning costs and validate chains |
-| **TokenCostAgent** | `mcp-tokenstats` | Calculate token counts and LLM costs |
-| **AutoEvalAgent** | `mcp-agent-inventory`, `mcp-tokenstats` | List agents, validate token limits |
+| **AutoEvalAgent** | `mcp-agent-inventory` | List agents, validate token limits |
 
 #### 5. Parallel Agent Orchestration with Real-Time Cost Tracking
 
 **Problem**: Agents need to work together efficiently in complex workflows with cost visibility.
 
 **Solution**: Workflow Orchestrator coordinates multiple agents in parallel with integrated cost tracking:
-- **Four Agents Working in Parallel**: MetricsAgent, ReasoningCostAgent, TokenCostAgent, and AutoEvalAgent execute simultaneously
-- **Real-Time Token Cost Calculation**: When MetricsAgent pulls agent usage, the orchestrator automatically calls TokenCostAgent to calculate actual USD costs
-- **Cost Integration Flow**: 
-  1. MetricsAgent → queries `mcp-agent-inventory` → gets agent usage (input/output tokens)
-  2. Orchestrator → calls `get_token_cost_realtime()` → calls TokenCostAgent
-  3. TokenCostAgent → queries `mcp-tokenstats` → calculates actual USD cost
-  4. Returns comprehensive cost breakdown: `input_cost_usd`, `output_cost_usd`, `total_cost_usd`
+- **Three Agents Working in Parallel**: MetricsAgent, ReasoningCostAgent, and AutoEvalAgent execute simultaneously
 - **Results Synthesis**: Results from all agents are combined and synthesized for comprehensive insights
 - **Error Handling**: Robust error handling ensures partial failures don't block entire workflows
 
@@ -171,7 +161,7 @@ Traditional agent monitoring tools typically focus on:
 - **Passive Observation**: Logging and monitoring without taking action
 
 CortexMetaAgent fundamentally differs by:
-- **Unified Orchestration**: Coordinates multiple specialized agents (MetricsAgent, AutoEvalAgent, ReasoningCostAgent, TokenCostAgent) in parallel and sequential patterns
+- **Unified Orchestration**: Coordinates multiple specialized agents (MetricsAgent, AutoEvalAgent, ReasoningCostAgent) in parallel and sequential patterns
 - **Proactive Evaluation**: Automatically generates and extends test suites based on agent changes
 - **Cross-Platform Governance**: Works with local agents, deployed agents (GCP Reasoning Engine), and MCP-based agents
 - **Intelligent Synthesis**: Automatically correlates metrics, costs, and evaluation results into actionable insights
@@ -199,7 +189,7 @@ These tools are valuable but **passive—they do not improve the system by thems
 CortexMetaAgent extends beyond traditional monitoring by providing:
 
 1. **Intelligent Agent Orchestration**:
-   - **Parallel Execution**: Runs MetricsAgent, ReasoningCostAgent, and TokenCostAgent simultaneously for efficiency
+   - **Parallel Execution**: Runs MetricsAgent and ReasoningCostAgent simultaneously for efficiency
    - **Sequential Refinement**: Uses AutoEvalAgent to extend test suites and run regressions based on gathered metrics
    - **Context-Aware Workflows**: Synthesizes inventory, usage, and cost data before making evaluation decisions
 
@@ -209,7 +199,7 @@ CortexMetaAgent extends beyond traditional monitoring by providing:
    - **Comprehensive Coverage**: Generates positive, negative, adversarial, and stress test suites automatically
 
 3. **Unified Cost Analysis**:
-   - **Token Cost Calculation**: Real-time USD cost calculation using official LLM pricing
+
    - **Reasoning Cost Estimation**: Validates reasoning chains and estimates action costs
    - **Cost-Performance Correlation**: Links cost metrics with performance metrics for optimization insights
 
@@ -262,7 +252,7 @@ It becomes the **single control plane** for managing agent intelligence, perform
 1. Parallel Metrics Gathering
    ├── MetricsAgent → Agent inventory & usage stats
    ├── ReasoningCostAgent → Reasoning chain analysis
-   └── TokenCostAgent → Token usage & cost calculation
+
 
 2. Sequential Evaluation & Testing
    └── AutoEvalAgent → Test generation & regression testing
@@ -325,10 +315,9 @@ This positions CortexMetaAgent as a new operational intelligence layer above cur
 7. **Dedicated Agent-to-MCP Server Interfaces**: Each agent has a specialized MCP server interface:
    - **MetricsAgent** ↔ `mcp-agent-inventory`: Unified interface for local and deployed agent inventory
    - **ReasoningCostAgent** ↔ `mcp-reasoning-cost`: Reasoning cost estimation with USD cost calculation
-   - **TokenCostAgent** ↔ `mcp-tokenstats`: Token counting and cost calculation with official Gemini pricing
    - **AutoEvalAgent** ↔ Multiple MCP servers: Agent inventory and token validation
 
-8. **Real-Time Cost Tracking**: Integrated token cost calculation during runtime - when agents are retrieved, their usage tokens are automatically converted to USD costs using official LLM pricing models.
+
 
 ## Conclusion
 
@@ -344,7 +333,7 @@ CortexMetaAgent successfully addresses the critical challenges in AI agent devel
 ✅ **Configurability**: Flexible configuration via YAML, CLI, or environment variables  
 ✅ **Integration**: Seamless integration with MCP servers for monitoring and statistics  
 ✅ **Centralized Configuration**: Single `AGENT_MODEL` environment variable controls all agents  
-✅ **Real-Time Cost Tracking**: Automatic USD cost calculation during agent usage retrieval  
+  
 ✅ **Dedicated Agent Interfaces**: Each agent has a specialized MCP server interface for optimal functionality  
 
 ### Impact

@@ -1,10 +1,10 @@
-# PowerShell script to run the TokenCostAgent
+# PowerShell script to run the AutoEvalAgent
 
 # Navigate to script directory
 Set-Location $PSScriptRoot
 
-Write-Host "TokenCostAgent" -ForegroundColor Green
-Write-Host ("=" * 50) -ForegroundColor Gray
+Write-Host "AutoEvalAgent" -ForegroundColor Green
+Write-Host ("=" * 60) -ForegroundColor Gray
 Write-Host ""
 
 # Check for required environment variables
@@ -17,17 +17,18 @@ if (-not $env:GOOGLE_APPLICATION_CREDENTIALS -and -not $env:GOOGLE_CLOUD_PROJECT
     Write-Host ""
 }
 
-# Check for MCP server URL
-if (-not $env:MCP_TOKENSTATS_URL) {
-    Write-Host "Using default MCP server URL: http://localhost:8000" -ForegroundColor Cyan
-    Write-Host "   Set `$env:MCP_TOKENSTATS_URL to use a different URL" -ForegroundColor Gray
-    Write-Host ""
+# Check for MCP server URLs
+if (-not $env:MCP_AGENT_INVENTORY_URL) {
+    Write-Host "Using default AgentInventory MCP URL: http://localhost:8001" -ForegroundColor Cyan
 }
+if (-not $env:MCP_TOKENSTATS_URL) {
+    Write-Host "Using default TokenStats MCP URL: http://localhost:8000" -ForegroundColor Cyan
+}
+Write-Host ""
 
-# Find Python executable (use actual .exe file, not Windows redirect)
+# Find Python executable
 $python = $null
 
-# Try to get real Python executable by running where.exe
 $wherePython = where.exe python 2>$null | Where-Object { $_ -match "\.exe$" } | Select-Object -First 1
 if ($wherePython -and (Test-Path $wherePython)) {
     $python = $wherePython
@@ -47,3 +48,4 @@ Write-Host "Running agent test suite..." -ForegroundColor Cyan
 Write-Host ""
 
 & $python test-agent.py
+

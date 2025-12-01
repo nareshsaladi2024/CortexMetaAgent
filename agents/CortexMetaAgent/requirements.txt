@@ -1,4 +1,4 @@
-# TokenCostAgent Dependencies
+# CortexMetaAgent Dependencies
 
 # Google ADK and Vertex AI
 google-adk>=1.18.0
@@ -9,3 +9,6 @@ requests>=2.31.0
 
 # Environment variable management
 python-dotenv>=1.0.0
+
+# YAML configuration file support
+pyyaml>=6.0

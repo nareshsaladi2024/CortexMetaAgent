@@ -13,11 +13,18 @@ from dotenv import load_dotenv
 import time
 
 # Add parent directory to path to import config
-# Add parent directory to path to import config
+# Try to import config, but handle gracefully if not available (e.g., in deployed environment)
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 if root_dir not in sys.path:
     sys.path.append(root_dir)
-from config import AGENT_MODEL, MCP_REASONING_COST_URL
+
+try:
+    from config import AGENT_MODEL, MCP_REASONING_COST_URL
+except ImportError:
+    # Fallback for deployed environments where config.py might not be available
+    # Use environment variables directly
+    AGENT_MODEL = os.environ.get("AGENT_MODEL", "gemini-2.5-flash-lite")
+    MCP_REASONING_COST_URL = os.environ.get("MCP_REASONING_COST_URL", "http://localhost:8002")
 
 # Load environment variables from shared .env file
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
